@@ -1,0 +1,6 @@
+/target/
+/phaedra2-datacaptureservice.iml
+/node_modules/
+src/.env
+/src/data.capture.test/.env
+/testdata/

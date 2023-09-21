@@ -1,0 +1,18 @@
+{
+    "name": "EnVision measurement capture config",
+    "identifyMeasurements": {
+        "scriptId": "identify.hts.measurements",
+        "measurementPattern": ".*\\.csv",
+        "barcodePattern": "\\d+",
+        "startLinePlateInfoPattern": "Plate information",
+        "endLinePlateInfoPattern": "^[,]+"
+    },
+    "gatherWellData": {
+        "scriptId": "gather.hts.welldata",
+        "parserId": "csv.welldata.hts.file.parser",
+        "barcodePattern": "\\d+",
+        "barcodeColumnPattern": "Barcode",
+        "startLinePattern": "Plate,Barcode,Well,",
+        "endLinePattern": "(,,,.*)|(Exported.*)"
+    }
+}

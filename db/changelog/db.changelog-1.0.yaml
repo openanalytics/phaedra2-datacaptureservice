@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: sberberovic
+      changes:
+        - sqlFile:
+            path: sql/1-create-tables.sql
+            relativeToChangelogFile: true
+            splitStatements: false
