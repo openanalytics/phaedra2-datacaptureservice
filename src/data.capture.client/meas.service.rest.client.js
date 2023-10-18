@@ -42,7 +42,6 @@ const measServiceAPI = {
 
         const body = JSON.stringify(measurement);
         const response = await axios.put(url, body, options)
-        // console.log(response)
         measurement.id = response.data.id
     },
     postImageData: (measId, wellNr, channelId, imageData, token) => {

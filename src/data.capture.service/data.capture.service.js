@@ -52,7 +52,7 @@ exports.executeCaptureJob = async (captureJob, token) => {
         captureJob = await jobDAO.insertCaptureJob('System', captureJob.sourcePath, captureJob.captureConfig);
     }
     updateCaptureJob(captureJob, 'Running');
-    
+
     try {
         const captureConfg = captureJob.captureConfig;
         if (!captureConfg.identifyMeasurements) return
@@ -181,6 +181,7 @@ const identifyMeasurements = (sourcePath, moduleConfig) => {
 }
 
 const gatherWellData = async (measurement, moduleConfig, token) => {
+    console.log("DataCaptureService -> gather well data")
     const useScript = require('../data.capture.script/' + moduleConfig.scriptId)
 
     const result = await useScript.execute(measurement, moduleConfig)

@@ -16,10 +16,10 @@ const parseWellData = (measurement, dcConfig) => {
     console.log('Parsing data for barcode: ' + measurement.barcode);
 
     const data = fs.readFileSync(measurement.source, {encoding: 'utf-8'});
-    const dataLines = data.split(dcConfig.dataLineSeparator || '\n');
+    const dataLines = data.split(dcConfig?.dataLineSeparator || '\n');
     const wellDataHeaderIndex = findWellDataInfoIndex(dataLines, dcConfig);
 
-    const wellDataHeadersLine = dataLines[wellDataHeaderIndex]
+    const wellDataHeadersLine = dataLines[wellDataHeaderIndex].replace(/,+$/g, '')
     const wellDataLines = dataLines.filter((wdl, index) => wdl.includes(measurement.barcode) && index > wellDataHeaderIndex);
 
     // measurement.wellColumns = null;

@@ -4,3 +4,4 @@
 src/.env
 /src/data.capture.test/.env
 /testdata/
+/test/
