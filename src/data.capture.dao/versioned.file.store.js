@@ -1,0 +1,73 @@
+const db = require('./db.accessor');
+
+class FileStore {
+    
+    constructor(storeId) {
+        this.storeId = storeId;
+    }
+
+    async loadFile(id) {
+        const record = await db.queryOne('select * from datacapture.file_store where store_id = $1 and id = $2', [ this.storeId, id ]);
+        return record ? new StoredFile(record) : null;
+    }
+
+    async saveFile(file) {
+        if (file.id) {
+            const existingRecord = await this.loadFile(file.id);
+            if (!existingRecord) throw `File not found with id ${file.id}`;
+            const mergedRecord = { ...existingRecord, ...file };
+            const record = await db.queryOne('update datacapture.file_store'
+                + ' set name = $3, version = $4, description = $5, value = $6, update_date = $7, updated_by = $8'
+                + ' where store_id = $1 and id = $2 returning *',
+                [ this.storeId, file.id, mergedRecord.name, mergedRecord.version + 1, mergedRecord.description, mergedRecord.value, new Date(), mergedRecord.updatedBy ]);
+            return new StoredFile(record);
+        } else {
+            const record = await db.queryOne('insert into datacapture.file_store'
+                + ' (store_id, name, version, description, value, create_date, created_by)'
+                + ' values ($1, $2, $3, $4, $5, $6, $7) returning *',
+                [ this.storeId, file.name, 1, file.description, file.value, new Date(), file.createdBy ]);
+            return new StoredFile(record);
+        }
+    }
+
+    async deleteFile(id) {
+        db.queryOne('delete from datacapture.file_store where store_id = $1 and id = $2', [ this.storeId, id ]);
+    }
+
+    async getAllFiles() {
+        const records = await db.queryAll('select * from datacapture.file_store where store_id = $1', [ this.storeId ]);
+        return records.map(record => new StoredFile(record));
+    }
+}
+
+class StoredFile {
+
+    id;
+    name;
+    version = 1;
+    description;
+    value;
+    createDate;
+    createdBy;
+    updateDate;
+    updatedBy;
+
+    constructor(fields) {
+        if (!fields) return;
+        Object.assign(this, fields);
+        this.createDate = fields.create_date;
+        this.createdBy = fields.created_by;
+        this.updateDate = fields.update_date;
+        this.updatedBy = fields.updated_by;
+        delete this.create_date;
+        delete this.created_by;
+        delete this.update_date;
+        delete this.updated_by;
+        delete this.store_id;
+    }
+}
+
+module.exports = {
+    FileStore,
+    StoredFile
+}

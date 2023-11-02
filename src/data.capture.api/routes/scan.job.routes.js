@@ -1,6 +1,6 @@
 'use strict';
 
-const controller = require('./scan.job.controller')
+const controller = require('../controllers/scan.job.controller')
 
 const baseURL = '/phaedra/datacapture-service'
 

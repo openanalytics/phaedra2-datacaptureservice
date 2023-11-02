@@ -1,7 +1,7 @@
 'use strict';
 
 
-const scanJobService = require('../data.capture.service/scan.job.service');
+const scanJobService = require('../../data.capture.service/scan.job.service');
 
 module.exports = {
     submitNewScanJob: (req, res) => {

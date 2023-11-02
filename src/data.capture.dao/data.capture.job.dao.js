@@ -1,52 +1,4 @@
-/**
- * Data Access for CaptureJobs and CaptureJobEvents.
- * *************************************************
- *
- * A DataCaptureJob is formatted as follows:
- * {
- *  id (number),
- *  createDate (Date),
- *  createdBy (string),
- *  sourcePath (string),
- *  captureConfig (Object, serialized as JSON),
- *  statusCode (string mapped to enum, see updateCaptureJob),
- *  statusMessage: string
- * }
- *
- * A DataCaptureJob can have zero or more DataCaptureJobEvents, formatted as follows:
- * {
- *  jobId (number),
- *  eventDate (Date),
- *  eventType (string mapped to enum, see insertCaptureJobEvent),
- *  eventDetails (string)
- * }
- *
- * Note: connection parameters are obtained from environment variables:
- * PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD
- */
-
-const { Pool } = require('pg')
-const pool = new Pool();
-
-const doQuery = async (sql, args, errorHandler) => {
-    const client = await pool.connect();
-    try {
-        return await client.query(sql, args)
-    } catch (err) {
-        if (errorHandler) errorHandler(err);
-        else console.log(err.stack)
-    } finally {
-        client.release();
-    }
-}
-
-const getFirstResultOrNull = (result) => {
-    return (result && result.rows && result.rows.length > 0) ? result.rows[0] : null;
-}
-
-const getAllResults = (result) => {
-    return result ? result.rows : [];
-}
+const db = require('./db.accessor');
 
 const mapToCaptureJob = (row) => {
     if (row === null) return null;
@@ -82,8 +34,8 @@ const mapToCaptureJobEvent = (row) => {
  * @returns The matching CaptureJob, or null if no match was found.
  */
 const getCaptureJob = async (jobId) => {
-    const result = await doQuery('select * from datacapture.capture_job where id = $1', [ jobId ]);
-    return mapToCaptureJob(getFirstResultOrNull(result));
+    const record = await db.queryOne('select * from datacapture.capture_job where id = $1', [ jobId ]);
+    return mapToCaptureJob(record);
 }
 
 /**
@@ -94,19 +46,8 @@ const getCaptureJob = async (jobId) => {
  * @returns An array containing all matching CaptureJobs.
  */
 const getCaptureJobs = async (fromDate, toDate) => {
-    const result = await doQuery('select * from datacapture.capture_job where create_date between $1 and $2', [ fromDate, toDate ]);
-    return getAllResults(result).map(mapToCaptureJob);
-}
-
-/**
- * Retrieve a config of a CaptureJob using its unique ID.
- *
- * @param {Number} jobId The unique ID of the job to retrieve.
- * @returns The matching capture_config, or null if no match was found.
- */
-const getCaptureJobConfig = async (jobId) => {
-    const result = await doQuery('select * from datacapture.capture_job where id = $1', [ jobId ]);
-    return result?getFirstResultOrNull(result).capture_config:null;
+    const records = await db.queryAll('select * from datacapture.capture_job where create_date between $1 and $2', [ fromDate, toDate ]);
+    return records.map(mapToCaptureJob);
 }
 
 /**
@@ -119,10 +60,10 @@ const getCaptureJobConfig = async (jobId) => {
  */
 const insertCaptureJob = async (owner, sourcePath, captureConfig) => {
     console.log(`Creating new CaptureJob for user ${owner} on ${sourcePath}`)
-    const result = await doQuery('insert into datacapture.capture_job (create_date, created_by, source_path, capture_config, status_code)'
+    const record = await db.queryOne('insert into datacapture.capture_job (create_date, created_by, source_path, capture_config, status_code)'
             + ' values ($1, $2, $3, $4, $5) returning *',
             [ new Date(), owner, sourcePath, captureConfig, 'Submitted' ]);
-    return mapToCaptureJob(getFirstResultOrNull(result));
+    return mapToCaptureJob(record);
 }
 
 /**
@@ -134,8 +75,7 @@ const insertCaptureJob = async (owner, sourcePath, captureConfig) => {
  */
 const updateCaptureJob = async (jobId, status, message) => {
     console.log(`Updating CaptureJob ${jobId} with status ${status} (${message || ''})`)
-    await doQuery('update datacapture.capture_job set status_code = $1, status_message = $2 where id = $3',
-            [ status, message, jobId ]);
+    await db.queryOne('update datacapture.capture_job set status_code = $1, status_message = $2 where id = $3', [ status, message, jobId ]);
 }
 
 /**
@@ -145,8 +85,8 @@ const updateCaptureJob = async (jobId, status, message) => {
  * @returns An array containing all events pertaining to the specified CaptureJob.
  */
 const getCaptureJobEvents = async (jobId) => {
-    const result = await doQuery('select * from datacapture.capture_job_event where job_id = $1', [ jobId ]);
-    return getAllResults(result).map(mapToCaptureJobEvent);
+    const records = await db.queryAll('select * from datacapture.capture_job_event where job_id = $1', [ jobId ]);
+    return records.map(mapToCaptureJobEvent);
 }
 
 /**
@@ -158,7 +98,7 @@ const getCaptureJobEvents = async (jobId) => {
  */
 const insertCaptureJobEvent = async (jobId, eventType, eventDetails) => {
     console.log(`Adding CaptureJobEvent for job ${jobId}: ${eventType}: ${eventDetails}`)
-    await doQuery('insert into datacapture.capture_job_event (job_id, event_date, event_type, event_details)'
+    await db.queryOne('insert into datacapture.capture_job_event (job_id, event_date, event_type, event_details)'
             + ' values ($1, $2, $3, $4)', [ jobId, new Date(), eventType, eventDetails ])
 }
 
@@ -170,6 +110,5 @@ module.exports = {
     insertCaptureJob,
     updateCaptureJob,
     getCaptureJobEvents,
-    insertCaptureJobEvent,
-    getCaptureJobConfig
+    insertCaptureJobEvent
 }

@@ -1,12 +1,12 @@
 'use strict';
-const fs = require('fs');
-const path = require('path');
 
+const path = require('path');
 const measClient = require('../data.capture.client/meas.service.rest.client');
 const measProducer = require('../data.capture.client/measurement.producer')
 const jobDAO = require('../data.capture.dao/data.capture.job.dao');
 const captureUtils = require('../data.capture.utils/capture.utils');
-const dataCaptureProducer = require('./data.capture.producer.service')
+const dataCaptureProducer = require('./data.capture.producer.service');
+const fileStoreService = require('./file.store.service');
 
 exports.getCaptureJob = async (jobId) => {
     const captureJob = await jobDAO.getCaptureJob(jobId);
@@ -22,17 +22,13 @@ exports.getCaptureJobs = async (fromDate, toDate) => {
     return captureJobs;
 }
 
-exports.getCaptureJobConfig = async (jobId) => {
-    return await jobDAO.getCaptureJobConfig(jobId);
-}
-
-exports.submitCaptureJob = async (sourcePath, captureConfig, token) => {
+exports.submitCaptureJob = async (sourcePath, captureConfig) => {
     const captureJob = await jobDAO.insertCaptureJob('System', sourcePath, captureConfig);
 
     // Here, we could schedule or queue the job execution in some fashion,
     // e.g. to apply throttling or delay if there are too many jobs running.
     // Currently, the job is executed immediately, in an async call without waiting for it to complete.
-    this.executeCaptureJob(captureJob, token);
+    this.executeCaptureJob(captureJob);
 
     return captureJob;
 }
@@ -45,7 +41,7 @@ exports.cancelCaptureJob = async (captureJobId) => {
     }
 }
 
-exports.executeCaptureJob = async (captureJob, token) => {
+exports.executeCaptureJob = async (captureJob) => {
     console.log('Executing capture job: ' + JSON.stringify(captureJob));
 
     if (captureJob.id === undefined) {
@@ -55,7 +51,8 @@ exports.executeCaptureJob = async (captureJob, token) => {
 
     try {
         const captureConfg = captureJob.captureConfig;
-        if (!captureConfg.identifyMeasurements) return
+        if (!captureConfg.identifyMeasurements) throw "Capture config is missing the identifyMeasurements step";
+
         const sourcePath = path.join(captureUtils.getDefaultSourcePath(), captureJob.sourcePath)
         const measurements = identifyMeasurements(sourcePath, captureConfg.identifyMeasurements)
         await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', `${measurements.length} measurement(s) identified`);
@@ -64,13 +61,13 @@ exports.executeCaptureJob = async (captureJob, token) => {
         if (measurements && measurements.length > 0) {
             // for (let i = 0; i < measurements.length; i++) {
             for (const m of measurements) {
-                await measClient.postMeasurement(m, token)
+                await measClient.postMeasurement(m)
 
                 // If capture job contains well data configuration, import measurements well data
                 if (captureConfg.gatherWellData) {
                     await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement well data')
 
-                    await gatherWellData(m, captureConfg.gatherWellData, token)
+                    await gatherWellData(m, captureConfg.gatherWellData)
 
                     const cancelled = await checkForCancel(captureJob.id);
                     if (cancelled) continue;
@@ -80,7 +77,7 @@ exports.executeCaptureJob = async (captureJob, token) => {
                 if (captureConfg.gatherSubwellData) {
                     await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement subwell data')
                     //TODO: Stream to the MeasurementService after the well data has been sent, in parallel with image data
-                    await gatherSubWellData(m, captureConfg.gatherSubwellData, token)
+                    await gatherSubWellData(m, captureConfg.gatherSubwellData)
 
                     const cancelled = await checkForCancel(captureJob.id);
                     if (cancelled) continue;
@@ -114,49 +111,73 @@ exports.executeCaptureJob = async (captureJob, token) => {
     }
 }
 
+/*
+ ************************** 
+ * Capture Configurations *
+ **************************
+ */
+
 exports.getAllCaptureConfigurations = async () => {
-    const captureConfigPath = './capture.config';
-    return new Promise((resolve, reject) => {
-        fs.readdir(captureConfigPath, (err, files) => {
-            if (err) {
-                return reject(err);
-            }
-
-            const result = files
-                .filter(file => path.extname(file) === '.json')
-                .map(file => path.basename(file, '.json'));
-
-            return resolve(result);
-        })
-    });
+    return await fileStoreService.getConfigStore().getAllFiles();
 }
 
-exports.getCaptureConfigurationByName = async (name) => {
-    const captureConfigPath = './capture.config';
-    return new Promise((resolve, reject) => {
-        const filePath = path.join(captureConfigPath, `${name}.json`);
-        fs.readFile(filePath, 'utf8', (err, data) => {
-            if (err) {
-                return reject(err);
-            }
-            return resolve(data);
-        })
-    });
+exports.getCaptureConfiguration = async (id) => {
+    return await fileStoreService.getConfigStore().loadFile(id);
 }
 
-exports.addNewCaptureConfiguration = async (newCaptureConfiguration) => {
-    const captureConfigPath = './capture.config';
-    return new Promise((resolve, reject) => {
-        const dcConfigObj = JSON.parse(newCaptureConfiguration);
-        const filePath = path.join(captureConfigPath, `${dcConfigObj.name}.json`);
-        fs.writeFile(filePath, newCaptureConfiguration, 'utf8', err => {
-            if (err) {
-                return reject(err);
-            }
-            return resolve(`${dcConfigObj.name}.json`);
-        });
-    });
+exports.addNewCaptureConfiguration = async (config) => {
+    //TODO createdBy
+    config.createdBy = "System";
+    return await fileStoreService.getConfigStore().saveFile(config);
 }
+
+exports.updateCaptureConfiguration = async (id, config) => {
+    //TODO updatedBy
+    config.updatedBy = "System";
+    config.id = id;
+    return await fileStoreService.getConfigStore().saveFile(config);
+}
+
+exports.deleteCaptureConfiguration = async (id) => {
+    await fileStoreService.getConfigStore().deleteFile(id);
+}
+
+/*
+ ******************* 
+ * Capture Scripts *
+ *******************
+ */
+
+exports.getAllCaptureScripts = async () => {
+    return await fileStoreService.getScriptStore().getAllFiles();
+}
+
+exports.getCaptureScript = async (id) => {
+    return await fileStoreService.getScriptStore().loadFile(id);
+}
+
+exports.addNewCaptureScript = async (config) => {
+    //TODO createdBy
+    config.createdBy = "System";
+    return await fileStoreService.getScriptStore().saveFile(config);
+}
+
+exports.updateCaptureScript = async (id, config) => {
+    //TODO updatedBy
+    config.updatedBy = "System";
+    config.id = id;
+    return await fileStoreService.getScriptStore().saveFile(config);
+}
+
+exports.deleteCaptureScript = async (id) => {
+    await fileStoreService.getScriptStore().deleteFile(id);
+}
+
+/*
+ ************************ 
+ * Non-public functions *
+ ************************
+ */
 
 async function checkForCancel(jobId) {
     let currentJob = await jobDAO.getCaptureJob(jobId);
@@ -180,7 +201,7 @@ const identifyMeasurements = (sourcePath, moduleConfig) => {
     return useScript.execute(sourcePath, moduleConfig)
 }
 
-const gatherWellData = async (measurement, moduleConfig, token) => {
+const gatherWellData = async (measurement, moduleConfig) => {
     console.log("DataCaptureService -> gather well data")
     const useScript = require('../data.capture.script/' + moduleConfig.scriptId)
 
@@ -191,7 +212,7 @@ const gatherWellData = async (measurement, moduleConfig, token) => {
     measurement["columns"] = result.columns
     measurement["wellColumns"] = result.wellColumns.filter(column => !isEmptyOrWhitespace(column))
 
-    await measClient.putMeasurement(measurement, token)
+    await measClient.putMeasurement(measurement)
 
     const sendWellDataPromises = Object.entries(result.welldata).map(([column, data]) => {
         if (column == null || column == '' || data == null || data.length == 0) return Promise.resolve(0);
@@ -206,7 +227,7 @@ const gatherWellData = async (measurement, moduleConfig, token) => {
     await Promise.all(sendWellDataPromises);
 }
 
-const gatherSubWellData = async (measurement, moduleConfig, token) => {
+const gatherSubWellData = async (measurement, moduleConfig) => {
     const useScript = require('../data.capture.script/' + moduleConfig.scriptId);
     const result = await useScript.execute(measurement, moduleConfig);
 
@@ -214,12 +235,19 @@ const gatherSubWellData = async (measurement, moduleConfig, token) => {
         if (r.subWellData == null || r.subWellData.length == 0) continue;
 
         measurement["subWellColumns"] = Object.keys(r.subWellData[0].data);
-        await measClient.putMeasurement(measurement, token);
+        await measClient.putMeasurement(measurement);
         for (const swData of r.subWellData) {
             let dto = createSubWellDataDTO(measurement, swData);
             await measProducer.requestMeasurementSaveSubwellData(dto);
         }
     }
+}
+
+const invokeScript = async (id) => {
+    const scriptFile = fileStoreService.getScriptStore().loadFile(id);
+    if (!scriptFile) throw `No script found with id ${id}`;
+    console.log(`Invoking script ${scriptFile.id} version ${scriptFile.version}`);
+    return eval(scriptFile.value);
 }
 
 const isEmptyOrWhitespace = (value) => {

@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2
+      author: fmichielssen
+      changes:
+        - sqlFile:
+            path: sql/2-create-filestore.sql
+            relativeToChangelogFile: true
+            splitStatements: false

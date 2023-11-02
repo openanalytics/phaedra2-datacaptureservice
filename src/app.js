@@ -7,8 +7,8 @@ const swaggerUI = require('swagger-ui-express')
 const swaggerFile = require('../swagger_output.json')
 
 
-const dcRoutes = require('./data.capture.api/data.capture.routes');
-const sjRoutes = require('./data.capture.api/scan.job.routes');
+const dcRoutes = require('./data.capture.api/routes/data.capture.routes');
+const sjRoutes = require('./data.capture.api/routes/scan.job.routes');
 
 const app = express();
 const port = process.env.PORT || 3004;

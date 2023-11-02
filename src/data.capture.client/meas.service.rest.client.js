@@ -3,8 +3,12 @@
 const http = require('http')
 const axios = require('axios')
 
+//TODO M2M Bearer token
+const token = '';
+
 const measServiceAPI = {
-    postMeasurement: async (measurement, token) => {
+
+    postMeasurement: async (measurement) => {
         const host = process.env.MEAS_SERVICE_HOST || 'http://localhost'
         const port = process.env.PORT || 3008
         const path = '/phaedra/measurement-service/measurements';
@@ -26,7 +30,8 @@ const measServiceAPI = {
         // console.log(response)
         measurement.id = response.data.id
     },
-    putMeasurement: async (measurement, token) => {
+
+    putMeasurement: async (measurement) => {
         const host = process.env.MEAS_SERVICE_HOST || 'http://localhost'
         const port = process.env.PORT || 3008
         const path = '/phaedra/measurement-service/measurements/' + measurement.id;
@@ -44,16 +49,17 @@ const measServiceAPI = {
         const response = await axios.put(url, body, options)
         measurement.id = response.data.id
     },
-    postImageData: (measId, wellNr, channelId, imageData, token) => {
+
+    postImageData: (measId, wellNr, channelId, imageData) => {
         console.log(`Uploading imageData for meas ${measId}, well ${wellNr}, channel ${channelId}: ${imageData.length} bytes`);
         const path = `/phaedra/measurement-service/meas/${measId}/imagedata/${wellNr}/${channelId}`;
-        makePOSTRequest(path, imageData, token);
+        makePOSTRequest(path, imageData);
     }
 }
 
 module.exports = measServiceAPI;
 
-const makePOSTRequest = (path, body, token, responseCallback) => {
+const makePOSTRequest = (path, body, responseCallback) => {
     const options = {
         host: process.env.MEAS_SERVICE_HOST || 'http://localhost',
         port: process.env.PORT || 3008,
@@ -88,7 +94,7 @@ const makePOSTRequest = (path, body, token, responseCallback) => {
     });
 }
 
-const makePUTRequest = (path, body, token, responseCallback) => {
+const makePUTRequest = (path, body, responseCallback) => {
     const options = {
         host: process.env.MEAS_SERVICE_HOST || 'localhost',
         port: process.env.PORT || 3008,
