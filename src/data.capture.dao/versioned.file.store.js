@@ -11,6 +11,11 @@ class FileStore {
         return record ? new StoredFile(record) : null;
     }
 
+    async loadFileByName(name) {
+        const record = await db.queryOne('select * from datacapture.file_store where store_id = $1 and name = $2', [ this.storeId, name ]);
+        return record ? new StoredFile(record) : null;
+    }
+
     async saveFile(file) {
         if (file.id) {
             const existingRecord = await this.loadFile(file.id);

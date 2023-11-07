@@ -2,9 +2,7 @@
 
 const http = require('http')
 const axios = require('axios')
-
-//TODO M2M Bearer token
-const token = '';
+const oauth2 = require('../data.capture.auth/oauth2.client')
 
 const measServiceAPI = {
 
@@ -14,20 +12,12 @@ const measServiceAPI = {
         const path = '/phaedra/measurement-service/measurements';
         const url = host + ":" + port + path
 
-        const options = {
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json; charset=UTF-8',
-                    'Authorization': 'Bearer ' + token
-                }
-        }
-        console.log("Post measurement to " + url)
-
         const body = JSON.stringify(measurement);
         // console.log("Measurement request body: " + JSON.stringify(body))
+        
+        console.log("Post measurement to " + url);
+        const response = await axios.post(url, body, { headers: buildRequestHeaders() });
 
-        const response = await axios.post(url, body, options)
-        // console.log(response)
         measurement.id = response.data.id
     },
 
@@ -36,17 +26,8 @@ const measServiceAPI = {
         const port = process.env.PORT || 3008
         const path = '/phaedra/measurement-service/measurements/' + measurement.id;
         const url = host + ":" + port + path
-
-        const options = {
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json; charset=UTF-8',
-                'Authorization': 'Bearer ' + token
-            }
-        }
-
         const body = JSON.stringify(measurement);
-        const response = await axios.put(url, body, options)
+        const response = await axios.put(url, body, { headers: buildRequestHeaders() })
         measurement.id = response.data.id
     },
 
@@ -65,11 +46,7 @@ const makePOSTRequest = (path, body, responseCallback) => {
         port: process.env.PORT || 3008,
         path: path,
         method: 'POST',
-        headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json; charset=UTF-8',
-            'Authorization': 'Bearer ' + token
-        }
+        headers: buildRequestHeaders()
     };
     let request = http.request(options, res => {
         if (res.statusCode !== 201) {
@@ -100,11 +77,7 @@ const makePUTRequest = (path, body, responseCallback) => {
         port: process.env.PORT || 3008,
         path: path,
         method: 'PUT',
-        headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json; charset=UTF-8',
-            'Authorization': 'Bearer ' + token
-        }
+        headers: buildRequestHeaders()
     };
 
     let request = http.request(options, (res) => {
@@ -128,4 +101,13 @@ const makePUTRequest = (path, body, responseCallback) => {
     request.on('error', (err) => {
         console.error(`Failed to PUT measurement: ${err.message}`);
     });
+}
+
+const buildRequestHeaders = () => {
+    const token = oauth2.getAccessToken();
+    return {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer ' + token
+    };
 }

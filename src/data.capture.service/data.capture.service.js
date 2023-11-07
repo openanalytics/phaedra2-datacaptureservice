@@ -1,6 +1,8 @@
 'use strict';
 
 const path = require('path');
+const vm = require('node:vm');
+
 const measClient = require('../data.capture.client/meas.service.rest.client');
 const measProducer = require('../data.capture.client/measurement.producer')
 const jobDAO = require('../data.capture.dao/data.capture.job.dao');
@@ -36,8 +38,8 @@ exports.submitCaptureJob = async (sourcePath, captureConfig) => {
 exports.cancelCaptureJob = async (captureJobId) => {
     const captureJob = await jobDAO.getCaptureJob(captureJobId);
     if (captureJob.statusCode === 'Running' || captureJob.statusCode === 'Submitted') {
-        await jobDAO.updateCaptureJob(captureJobId, 'Cancelled');
-        return captureJob;
+        await jobDAO.insertCaptureJobEvent(captureJobId, 'Warning', `Capture job cancelled by request`);
+        return await updateCaptureJob(captureJob, 'Cancelled');
     }
 }
 
@@ -51,48 +53,35 @@ exports.executeCaptureJob = async (captureJob) => {
 
     try {
         const captureConfg = captureJob.captureConfig;
+        const sourcePath = path.join(captureUtils.getDefaultSourcePath(), captureJob.sourcePath);
+        
         if (!captureConfg.identifyMeasurements) throw "Capture config is missing the identifyMeasurements step";
-
-        const sourcePath = path.join(captureUtils.getDefaultSourcePath(), captureJob.sourcePath)
-        const measurements = identifyMeasurements(sourcePath, captureConfg.identifyMeasurements)
+        const measurements = await identifyMeasurements(sourcePath, captureConfg.identifyMeasurements);
         await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', `${measurements.length} measurement(s) identified`);
-
-        // Capture well data if well data config exists
+        
+        let cancelled = false;
         if (measurements && measurements.length > 0) {
-            // for (let i = 0; i < measurements.length; i++) {
             for (const m of measurements) {
-                await measClient.postMeasurement(m)
+                await measClient.postMeasurement(m);
 
-                // If capture job contains well data configuration, import measurements well data
                 if (captureConfg.gatherWellData) {
-                    await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement well data')
-
-                    await gatherWellData(m, captureConfg.gatherWellData)
-
-                    const cancelled = await checkForCancel(captureJob.id);
-                    if (cancelled) continue;
+                    await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement well data');
+                    await gatherWellData(m, captureConfg.gatherWellData);
                 }
 
-                // If capture job contains sub-well data configuration, import measurements sub-well data
                 if (captureConfg.gatherSubwellData) {
-                    await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement subwell data')
+                    await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement subwell data');
                     //TODO: Stream to the MeasurementService after the well data has been sent, in parallel with image data
-                    await gatherSubWellData(m, captureConfg.gatherSubwellData)
-
-                    const cancelled = await checkForCancel(captureJob.id);
-                    if (cancelled) continue;
+                    await gatherSubWellData(m, captureConfg.gatherSubwellData);
                 }
 
-                // If capture job contains image data configuration, import measurements image data
                 if (captureConfg.imageData) {
-                    await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing imagedata')
-
-                    let parserId = captureConfg.imageData.parserId;
-                    if (!parserId) throw 'Cannot parse image data: no parserId specified';
-
-                    const parser = require(`../parsers/${parserId}`);
-                    await parser.parse(captureConfg, measurements, {measService: measClient});
+                    await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement image data');
+                    await gatherImageData(m, captureConfg.imageData);
                 }
+                
+                cancelled = await checkForCancel(captureJob.id);
+                if (cancelled) break;
 
                 await dataCaptureProducer.notifyCaptureJobUpdated({
                     ...captureJob,
@@ -102,8 +91,7 @@ exports.executeCaptureJob = async (captureJob) => {
             }
         }
 
-        captureJob = await jobDAO.getCaptureJob(captureJob.id);
-        if (captureJob.statusCode !== 'Cancelled') {
+        if (!cancelled) {
             updateCaptureJob(captureJob, 'Completed');
         }
     } catch (err) {
@@ -181,11 +169,7 @@ exports.deleteCaptureScript = async (id) => {
 
 async function checkForCancel(jobId) {
     let currentJob = await jobDAO.getCaptureJob(jobId);
-    let isCancelled = (currentJob.statusCode === 'Cancelled');
-    if (isCancelled) {
-        jobDAO.insertCaptureJobEvent(jobId, 'Warning', `Capture job cancelled by request`);
-    }
-    return isCancelled;
+    return (currentJob.statusCode === 'Cancelled');
 }
 
 async function updateCaptureJob(job, newStatus, message) {
@@ -196,18 +180,19 @@ async function updateCaptureJob(job, newStatus, message) {
     return job;
 }
 
-const identifyMeasurements = (sourcePath, moduleConfig) => {
-    const useScript = require('../data.capture.script/' + moduleConfig.scriptId)
-    return useScript.execute(sourcePath, moduleConfig)
+const identifyMeasurements = async (sourcePath, moduleConfig) => {
+    return await invokeScript(moduleConfig.scriptId, {
+        sourcePath: sourcePath,
+        moduleConfig: moduleConfig
+    });
 }
 
 const gatherWellData = async (measurement, moduleConfig) => {
-    console.log("DataCaptureService -> gather well data")
-    const useScript = require('../data.capture.script/' + moduleConfig.scriptId)
-
-    const result = await useScript.execute(measurement, moduleConfig)
+    const result = await invokeScript(moduleConfig.scriptId, {
+        measurement: measurement,
+        moduleConfig: moduleConfig
+    });
     const wellCount = result.rows * result.columns;
-
     measurement["rows"] = result.rows
     measurement["columns"] = result.columns
     measurement["wellColumns"] = result.wellColumns.filter(column => !isEmptyOrWhitespace(column))
@@ -228,8 +213,10 @@ const gatherWellData = async (measurement, moduleConfig) => {
 }
 
 const gatherSubWellData = async (measurement, moduleConfig) => {
-    const useScript = require('../data.capture.script/' + moduleConfig.scriptId);
-    const result = await useScript.execute(measurement, moduleConfig);
+    const result = await invokeScript(moduleConfig.scriptId, {
+        measurement: measurement,
+        moduleConfig: moduleConfig
+    });
 
     for (const r of result) {
         if (r.subWellData == null || r.subWellData.length == 0) continue;
@@ -243,11 +230,22 @@ const gatherSubWellData = async (measurement, moduleConfig) => {
     }
 }
 
-const invokeScript = async (id) => {
-    const scriptFile = fileStoreService.getScriptStore().loadFile(id);
-    if (!scriptFile) throw `No script found with id ${id}`;
-    console.log(`Invoking script ${scriptFile.id} version ${scriptFile.version}`);
-    return eval(scriptFile.value);
+const gatherImageData = async (measurement, moduleConfig) => {
+    await invokeScript(moduleConfig.scriptId, {
+        measurement: measurement,
+        moduleConfig: moduleConfig
+    });
+};
+
+const invokeScript = async (scriptName, scriptContext) => {
+    const scriptFile = await fileStoreService.getScriptStore().loadFileByName(scriptName);
+    if (!scriptFile) throw `No script found with name "${scriptName}"`;
+    console.log(`Invoking script "${scriptFile.name}", id ${scriptFile.id}, version ${scriptFile.version}`);
+    const ctx = scriptContext || {};
+    ctx.output = null;
+    vm.createContext(ctx);
+    vm.runInContext(scriptFile.value, ctx);
+    return ctx.output;
 }
 
 const isEmptyOrWhitespace = (value) => {
