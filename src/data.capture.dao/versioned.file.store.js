@@ -22,13 +22,13 @@ class FileStore {
             if (!existingRecord) throw `File not found with id ${file.id}`;
             const mergedRecord = { ...existingRecord, ...file };
             const record = await db.queryOne('update datacapture.file_store'
-                + ' set name = $3, version = $4, description = $5, value = $6, update_date = $7, updated_by = $8'
+                + ' set name = $3, version = $4, description = $5, value = $6, updated_on = $7, updated_by = $8'
                 + ' where store_id = $1 and id = $2 returning *',
                 [ this.storeId, file.id, mergedRecord.name, mergedRecord.version + 1, mergedRecord.description, mergedRecord.value, new Date(), mergedRecord.updatedBy ]);
             return new StoredFile(record);
         } else {
             const record = await db.queryOne('insert into datacapture.file_store'
-                + ' (store_id, name, version, description, value, create_date, created_by)'
+                + ' (store_id, name, version, description, value, created_on, created_by)'
                 + ' values ($1, $2, $3, $4, $5, $6, $7) returning *',
                 [ this.storeId, file.name, 1, file.description, file.value, new Date(), file.createdBy ]);
             return new StoredFile(record);
@@ -52,21 +52,21 @@ class StoredFile {
     version = 1;
     description;
     value;
-    createDate;
+    createdOn;
     createdBy;
-    updateDate;
+    updatedOn;
     updatedBy;
 
     constructor(fields) {
         if (!fields) return;
         Object.assign(this, fields);
-        this.createDate = fields.create_date;
+        this.createdOn = fields.created_on;
         this.createdBy = fields.created_by;
-        this.updateDate = fields.update_date;
+        this.updatedOn = fields.updated_on;
         this.updatedBy = fields.updated_by;
-        delete this.create_date;
+        delete this.created_on;
         delete this.created_by;
-        delete this.update_date;
+        delete this.updated_on;
         delete this.updated_by;
         delete this.store_id;
     }

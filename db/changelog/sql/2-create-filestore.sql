@@ -8,9 +8,9 @@ create table if not exists datacapture.file_store
     version         integer not null,
     description     text,
     value           text,
-    create_date     timestamp not null,
+    created_on      timestamp not null,
     created_by      text not null,
-    update_date     timestamp,
+    updated_on      timestamp,
     updated_by      text,
     UNIQUE (store_id, name)
 );

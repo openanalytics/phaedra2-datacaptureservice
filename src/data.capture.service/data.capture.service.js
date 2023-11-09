@@ -9,6 +9,7 @@ const jobDAO = require('../data.capture.dao/data.capture.job.dao');
 const captureUtils = require('../data.capture.utils/capture.utils');
 const dataCaptureProducer = require('./data.capture.producer.service');
 const fileStoreService = require('./file.store.service');
+const oauth2 = require('../data.capture.auth/oauth2.server');
 
 exports.getCaptureJob = async (jobId) => {
     const captureJob = await jobDAO.getCaptureJob(jobId);
@@ -113,20 +114,24 @@ exports.getCaptureConfiguration = async (id) => {
     return await fileStoreService.getConfigStore().loadFile(id);
 }
 
-exports.addNewCaptureConfiguration = async (config) => {
-    //TODO createdBy
-    config.createdBy = "System";
+exports.addNewCaptureConfiguration = async (config, accessToken) => {
+    config.createdBy = oauth2.getSubject(accessToken);
     return await fileStoreService.getConfigStore().saveFile(config);
 }
 
-exports.updateCaptureConfiguration = async (id, config) => {
-    //TODO updatedBy
-    config.updatedBy = "System";
+exports.updateCaptureConfiguration = async (id, config, accessToken) => {
+    const existingFile = await fileStoreService.getConfigStore().loadFile(id);
+    if (!canEditFile(accessToken, existingFile)) throw new StatusError(`No permission to modify file ${id}`, 403 );
+
     config.id = id;
+    config.updatedBy = oauth2.getSubject(accessToken);
     return await fileStoreService.getConfigStore().saveFile(config);
 }
 
-exports.deleteCaptureConfiguration = async (id) => {
+exports.deleteCaptureConfiguration = async (id, accessToken) => {
+    const existingFile = await fileStoreService.getConfigStore().loadFile(id);
+    if (!canEditFile(accessToken, existingFile)) throw new StatusError(`No permission to modify file ${id}`, 403 );
+
     await fileStoreService.getConfigStore().deleteFile(id);
 }
 
@@ -144,20 +149,24 @@ exports.getCaptureScript = async (id) => {
     return await fileStoreService.getScriptStore().loadFile(id);
 }
 
-exports.addNewCaptureScript = async (config) => {
-    //TODO createdBy
-    config.createdBy = "System";
-    return await fileStoreService.getScriptStore().saveFile(config);
+exports.addNewCaptureScript = async (script, accessToken) => {
+    script.createdBy = oauth2.getSubject(accessToken);
+    return await fileStoreService.getScriptStore().saveFile(script);
 }
 
-exports.updateCaptureScript = async (id, config) => {
-    //TODO updatedBy
-    config.updatedBy = "System";
-    config.id = id;
-    return await fileStoreService.getScriptStore().saveFile(config);
+exports.updateCaptureScript = async (id, script, accessToken) => {
+    const existingFile = await fileStoreService.getScriptStore().loadFile(id);
+    if (!canEditFile(accessToken, existingFile)) throw new StatusError(`No permission to modify file ${id}`, 403 );
+
+    script.id = id;
+    script.updatedBy = oauth2.getSubject(accessToken);
+    return await fileStoreService.getScriptStore().saveFile(script);
 }
 
-exports.deleteCaptureScript = async (id) => {
+exports.deleteCaptureScript = async (id, accessToken) => {
+    const existingFile = await fileStoreService.getScriptStore().loadFile(id);
+    if (!canEditFile(accessToken, existingFile)) throw new StatusError(`No permission to modify file ${id}`, 403 );
+
     await fileStoreService.getScriptStore().deleteFile(id);
 }
 
@@ -166,6 +175,12 @@ exports.deleteCaptureScript = async (id) => {
  * Non-public functions *
  ************************
  */
+
+function canEditFile(accessToken, file) {
+    if (oauth2.hasAdminAccess(accessToken)) return true;
+    const userId = oauth2.getSubject(accessToken);
+    return file.createdBy == userId;
+}
 
 async function checkForCancel(jobId) {
     let currentJob = await jobDAO.getCaptureJob(jobId);
@@ -260,4 +275,13 @@ const createSubWellDataDTO = (measurement, subWellData) => {
         column: key,
         data: value
     }));
+}
+
+class StatusError extends Error {
+    status = null;
+
+    constructor(msg, status) {
+        super(msg);
+        this.status = status;
+    }
 }
