@@ -19,12 +19,13 @@ const tokenContext = {
 
 module.exports = {
     getAccessToken: async () => {
-        if (!tokenContext.currentToken) {
+        if (!tokenContext.currentToken || tokenContext.currentToken?.expired()) {
             tokenContext.currentToken = await client.getToken({}, { json: true });
         }
-        if (tokenContext.currentToken?.expired()) {
-            tokenContext.currentToken = await tokenContext.currentToken.refresh();
-        }
+        // Note: refres tokens should not be used in client credentials grant
+        // if (tokenContext.currentToken?.expired()) {
+        //     tokenContext.currentToken = await tokenContext.currentToken.refresh();
+        // }
         return tokenContext.currentToken?.token?.access_token;
     }
 };
