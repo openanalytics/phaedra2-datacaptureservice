@@ -93,10 +93,10 @@ exports.executeCaptureJob = async (captureJob) => {
         }
 
         if (!cancelled) {
-            updateCaptureJob(captureJob, 'Completed');
+            await updateCaptureJob(captureJob, 'Completed');
         }
     } catch (err) {
-        updateCaptureJob(captureJob, 'Error', err.toString());
+        await updateCaptureJob(captureJob, 'Error', err.toString());
     }
 }
 
