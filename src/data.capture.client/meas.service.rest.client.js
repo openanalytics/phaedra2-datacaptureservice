@@ -16,7 +16,7 @@ const measServiceAPI = {
         // console.log("Measurement request body: " + JSON.stringify(body))
 
         console.log("Post measurement to " + url);
-        const response = await axios.post(url, body, { headers: buildRequestHeaders() });
+        const response = await axios.post(url, body, { headers: await buildRequestHeaders() });
 
         measurement.id = response.data.id
     },
@@ -27,7 +27,7 @@ const measServiceAPI = {
         const path = '/phaedra/measurement-service/measurements/' + measurement.id;
         const url = host + ":" + port + path
         const body = JSON.stringify(measurement);
-        const response = await axios.put(url, body, { headers: buildRequestHeaders() })
+        const response = await axios.put(url, body, { headers: await buildRequestHeaders() })
         measurement.id = response.data.id
     },
 
@@ -46,7 +46,7 @@ const makePOSTRequest = (path, body, responseCallback) => {
         port: process.env.PORT || 3008,
         path: path,
         method: 'POST',
-        headers: buildRequestHeaders()
+        headers:  buildRequestHeaders()
     };
     let request = http.request(options, res => {
         if (res.statusCode !== 201) {
@@ -103,8 +103,8 @@ const makePUTRequest = (path, body, responseCallback) => {
     });
 }
 
-const buildRequestHeaders = () => {
-    const token = oauth2.getAccessToken();
+const buildRequestHeaders = async () => {
+    const token = await oauth2.getAccessToken();
     console.log("Authorization token: " + token)
     return {
         'Accept': 'application/json',
