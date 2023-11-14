@@ -257,7 +257,10 @@ const invokeScript = async (scriptName, scriptContext) => {
     if (!scriptFile) throw `No script found with name "${scriptName}"`;
     console.log(`Invoking script "${scriptFile.name}", id ${scriptFile.id}, version ${scriptFile.version}`);
     const ctx = scriptContext || {};
+    // Additional objects available to scripts:
     ctx.output = null;
+    ctx.require = require;
+    ctx.console = console;
     vm.createContext(ctx);
     vm.runInContext(scriptFile.value, ctx);
     return ctx.output;
