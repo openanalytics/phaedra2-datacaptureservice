@@ -214,6 +214,8 @@ const gatherWellData = async (measurement, moduleConfig) => {
 
     await measClient.putMeasurement(measurement)
 
+    console.log('Measurements well data: ' + JSON.stringify(result.welldata));
+
     const sendWellDataPromises = Object.entries(result.welldata).map(([column, data]) => {
         if (column == null || column == '' || data == null || data.length == 0) return Promise.resolve(0);
         while (data.length < wellCount) data.push(NaN);
