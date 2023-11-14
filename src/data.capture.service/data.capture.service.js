@@ -53,11 +53,11 @@ exports.executeCaptureJob = async (captureJob) => {
     await updateCaptureJob(captureJob, 'Running');
 
     try {
-        const captureConfg = captureJob.captureConfig;
+        const captureConfig = captureJob.captureConfig;
         const sourcePath = path.join(captureUtils.getDefaultSourcePath(), captureJob.sourcePath);
 
-        if (!captureConfg.identifyMeasurements) throw "Capture config is missing the identifyMeasurements step";
-        const measurements = await identifyMeasurements(sourcePath, captureConfg.identifyMeasurements);
+        if (!captureConfig.identifyMeasurements) throw "Capture config is missing the identifyMeasurements step";
+        const measurements = await identifyMeasurements(sourcePath, captureJob);
         await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', `${measurements.length} measurement(s) identified`);
 
         let cancelled = false;
@@ -65,20 +65,20 @@ exports.executeCaptureJob = async (captureJob) => {
             for (const m of measurements) {
                 await measClient.postMeasurement(m);
 
-                if (captureConfg.gatherWellData) {
+                if (captureConfig.gatherWellData) {
                     await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement well data');
-                    await gatherWellData(m, captureConfg.gatherWellData);
+                    await gatherWellData(m, captureJob);
                 }
 
-                if (captureConfg.gatherSubwellData) {
+                if (captureConfig.gatherSubwellData) {
                     await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement subwell data');
                     //TODO: Stream to the MeasurementService after the well data has been sent, in parallel with image data
-                    await gatherSubWellData(m, captureConfg.gatherSubwellData);
+                    await gatherSubWellData(m, captureJob);
                 }
 
-                if (captureConfg.imageData) {
+                if (captureConfig.gatherImageData) {
                     await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement image data');
-                    await gatherImageData(m, captureConfg.imageData);
+                    await gatherImageData(m, captureJob);
                 }
 
                 cancelled = await checkForCancel(captureJob.id);
@@ -195,17 +195,21 @@ async function updateCaptureJob(job, newStatus, message) {
     return job;
 }
 
-const identifyMeasurements = async (sourcePath, moduleConfig) => {
+const identifyMeasurements = async (sourcePath, captureJob) => {
+    const moduleConfig = captureJob.captureConfig.identifyMeasurements;
     return await invokeScript(moduleConfig.scriptId, {
         sourcePath: sourcePath,
-        moduleConfig: moduleConfig
+        moduleConfig: moduleConfig,
+        captureJob: captureJob
     });
 }
 
-const gatherWellData = async (measurement, moduleConfig) => {
+const gatherWellData = async (measurement, captureJob) => {
+    const moduleConfig = captureJob.captureConfig.gatherWellData;
     const result = await invokeScript(moduleConfig.scriptId, {
         measurement: measurement,
-        moduleConfig: moduleConfig
+        moduleConfig: moduleConfig,
+        captureJob: captureJob
     });
     const wellCount = result.rows * result.columns;
     measurement["rows"] = result.rows
@@ -229,10 +233,12 @@ const gatherWellData = async (measurement, moduleConfig) => {
     await Promise.all(sendWellDataPromises);
 }
 
-const gatherSubWellData = async (measurement, moduleConfig) => {
+const gatherSubWellData = async (measurement, captureJob) => {
+    const moduleConfig = captureJob.captureConfig.gatherSubwellData;
     const result = await invokeScript(moduleConfig.scriptId, {
         measurement: measurement,
-        moduleConfig: moduleConfig
+        moduleConfig: moduleConfig,
+        captureJob: captureJob
     });
 
     for (const r of result) {
@@ -247,10 +253,12 @@ const gatherSubWellData = async (measurement, moduleConfig) => {
     }
 }
 
-const gatherImageData = async (measurement, moduleConfig) => {
+const gatherImageData = async (measurement, captureJob) => {
+    const moduleConfig = captureJob.captureConfig.gatherImageData;
     await invokeScript(moduleConfig.scriptId, {
         measurement: measurement,
-        moduleConfig: moduleConfig
+        moduleConfig: moduleConfig,
+        captureJob: captureJob
     });
 };
 
@@ -264,6 +272,7 @@ const invokeScript = async (scriptName, scriptContext) => {
     ctx.require = require;
     ctx.console = console;
     ctx.captureUtils = captureUtils;
+    ctx.log = async (message, level) => await jobDAO.insertCaptureJobEvent(ctx.captureJob?.id, level || 'Info', message);
     vm.createContext(ctx);
     vm.runInContext(scriptFile.value, ctx);
     return ctx.output;
