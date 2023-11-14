@@ -211,12 +211,11 @@ const gatherWellData = async (measurement, captureJob) => {
         moduleConfig: moduleConfig,
         captureJob: captureJob
     });
+
     const wellCount = result.rows * result.columns;
     measurement["rows"] = result.rows
     measurement["columns"] = result.columns
     measurement["wellColumns"] = result.wellColumns.filter(column => !isEmptyOrWhitespace(column))
-    console.log('Measurements well data: ' + JSON.stringify(result.welldata));
-
     await measClient.putMeasurement(measurement)
 
     const sendWellDataPromises = Object.entries(result.welldata).map(([column, data]) => {
