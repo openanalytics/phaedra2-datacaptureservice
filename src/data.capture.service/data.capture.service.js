@@ -10,6 +10,7 @@ const captureUtils = require('../data.capture.utils/capture.utils');
 const dataCaptureProducer = require('./data.capture.producer.service');
 const fileStoreService = require('./file.store.service');
 const oauth2 = require('../data.capture.auth/oauth2.server');
+const captureUtils = require('../data.capture.utils/capture.utils');
 
 exports.getCaptureJob = async (jobId) => {
     const captureJob = await jobDAO.getCaptureJob(jobId);
@@ -261,6 +262,7 @@ const invokeScript = async (scriptName, scriptContext) => {
     ctx.output = null;
     ctx.require = require;
     ctx.console = console;
+    ctx.captureUtils = captureUtils;
     vm.createContext(ctx);
     vm.runInContext(scriptFile.value, ctx);
     return ctx.output;
