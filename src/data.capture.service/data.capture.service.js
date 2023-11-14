@@ -66,18 +66,18 @@ exports.executeCaptureJob = async (captureJob) => {
                 await measClient.postMeasurement(m);
 
                 if (captureConfig.gatherWellData) {
-                    await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement well data');
+                    await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement well data for ' + m.barcode);
                     await gatherWellData(m, captureJob);
                 }
 
                 if (captureConfig.gatherSubwellData) {
-                    await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement subwell data');
+                    await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement subwell data for ' + m.barcode);
                     //TODO: Stream to the MeasurementService after the well data has been sent, in parallel with image data
                     await gatherSubWellData(m, captureJob);
                 }
 
                 if (captureConfig.gatherImageData) {
-                    await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement image data');
+                    await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement image data for ' + m.barcode);
                     await gatherImageData(m, captureJob);
                 }
 
