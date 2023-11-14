@@ -14,7 +14,7 @@ const measServiceAPI = {
 
         const body = JSON.stringify(measurement);
         // console.log("Measurement request body: " + JSON.stringify(body))
-        
+
         console.log("Post measurement to " + url);
         const response = await axios.post(url, body, { headers: buildRequestHeaders() });
 
@@ -105,6 +105,7 @@ const makePUTRequest = (path, body, responseCallback) => {
 
 const buildRequestHeaders = () => {
     const token = oauth2.getAccessToken();
+    console.log("Authorization token: " + token)
     return {
         'Accept': 'application/json',
         'Content-Type': 'application/json; charset=UTF-8',

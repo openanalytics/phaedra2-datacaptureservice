@@ -11,7 +11,8 @@ let dataCaptureConsumer = {
             eachMessage: async ({topic, partition, message}) => {
                 if (message.key.toString() === kafkaConfig.EVENT_REQ_CAPTURE_JOB) {
                     const captureJob = JSON.parse(message.value.toString());
-                    dcService.executeCaptureJob(captureJob);
+                    console.log("Data Capture Consumer: about to execute a capture job " + JSON.stringify(captureJob))
+                    await dcService.executeCaptureJob(captureJob);
                 }
             },
         })

@@ -50,16 +50,16 @@ exports.executeCaptureJob = async (captureJob) => {
     if (captureJob.id === undefined) {
         captureJob = await jobDAO.insertCaptureJob('System', captureJob.sourcePath, captureJob.captureConfig);
     }
-    updateCaptureJob(captureJob, 'Running');
+    await updateCaptureJob(captureJob, 'Running');
 
     try {
         const captureConfg = captureJob.captureConfig;
         const sourcePath = path.join(captureUtils.getDefaultSourcePath(), captureJob.sourcePath);
-        
+
         if (!captureConfg.identifyMeasurements) throw "Capture config is missing the identifyMeasurements step";
         const measurements = await identifyMeasurements(sourcePath, captureConfg.identifyMeasurements);
         await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', `${measurements.length} measurement(s) identified`);
-        
+
         let cancelled = false;
         if (measurements && measurements.length > 0) {
             for (const m of measurements) {
@@ -80,7 +80,7 @@ exports.executeCaptureJob = async (captureJob) => {
                     await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement image data');
                     await gatherImageData(m, captureConfg.imageData);
                 }
-                
+
                 cancelled = await checkForCancel(captureJob.id);
                 if (cancelled) break;
 
@@ -101,7 +101,7 @@ exports.executeCaptureJob = async (captureJob) => {
 }
 
 /*
- ************************** 
+ **************************
  * Capture Configurations *
  **************************
  */
@@ -136,7 +136,7 @@ exports.deleteCaptureConfiguration = async (id, accessToken) => {
 }
 
 /*
- ******************* 
+ *******************
  * Capture Scripts *
  *******************
  */
@@ -171,7 +171,7 @@ exports.deleteCaptureScript = async (id, accessToken) => {
 }
 
 /*
- ************************ 
+ ************************
  * Non-public functions *
  ************************
  */
