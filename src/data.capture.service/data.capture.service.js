@@ -1,17 +1,27 @@
 'use strict';
 
 const path = require('path');
+const fs = require('fs');
 const vm = require('node:vm');
 
 const measClient = require('../data.capture.client/meas.service.rest.client');
 const measProducer = require('../data.capture.client/measurement.producer')
 const jobDAO = require('../data.capture.dao/data.capture.job.dao');
-const captureUtils = require('../data.capture.utils/capture.utils');
 const dataCaptureProducer = require('./data.capture.producer.service');
 const fileStoreService = require('./file.store.service');
 const oauth2 = require('../data.capture.auth/oauth2.server');
-const imageCodec = require('../data.capture.utils/image.codec.jp2k');
-const imageIdentifier = require('../data.capture.utils/image.identifier');
+const captureUtils = require('../data.capture.utils/capture.utils');
+
+const defaultScriptContext = {
+    console: console,
+    require: require,
+    captureUtils: captureUtils,
+    measClient: measClient,
+    imageCodec: require('../data.capture.utils/image.codec.jp2k'),
+    imageIdentifier: require('../data.capture.utils/image.identifier'),
+    s3: require('../data.capture.utils/s3.api'),
+    log: async (message, level) => await jobDAO.insertCaptureJobEvent(ctx.captureJob?.id, level || 'Info', message)
+};
 
 exports.getCaptureJob = async (jobId) => {
     const captureJob = await jobDAO.getCaptureJob(jobId);
@@ -258,10 +268,7 @@ const gatherImageData = async (measurement, captureJob) => {
     await invokeScript(moduleConfig.scriptId, {
         measurement: measurement,
         moduleConfig: moduleConfig,
-        captureJob: captureJob,
-        imageCodec: imageCodec,
-        imageIdentifier: imageIdentifier,
-        measClient: measClient
+        captureJob: captureJob
     });
 };
 
@@ -269,13 +276,8 @@ const invokeScript = async (scriptName, scriptContext) => {
     const scriptFile = await fileStoreService.getScriptStore().loadFileByName(scriptName);
     if (!scriptFile) throw `No script found with name "${scriptName}"`;
     console.log(`Invoking script "${scriptFile.name}", id ${scriptFile.id}, version ${scriptFile.version}`);
-    const ctx = scriptContext || {};
-    // Additional objects available to scripts:
+    const ctx = { ...defaultScriptContext, ...(scriptContext || {})};
     ctx.output = null;
-    ctx.require = require;
-    ctx.console = console;
-    ctx.captureUtils = captureUtils;
-    ctx.log = async (message, level) => await jobDAO.insertCaptureJobEvent(ctx.captureJob?.id, level || 'Info', message);
     vm.createContext(ctx);
     vm.runInContext(scriptFile.value, ctx);
     return ctx.output;
