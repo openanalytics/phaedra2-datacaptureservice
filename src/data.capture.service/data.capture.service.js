@@ -11,6 +11,7 @@ const dataCaptureProducer = require('./data.capture.producer.service');
 const fileStoreService = require('./file.store.service');
 const oauth2 = require('../data.capture.auth/oauth2.server');
 const imageCodec = require('../data.capture.utils/image.codec.jp2k');
+const imageIdentifier = require('../data.capture.utils/image.identifier');
 
 exports.getCaptureJob = async (jobId) => {
     const captureJob = await jobDAO.getCaptureJob(jobId);
@@ -259,6 +260,7 @@ const gatherImageData = async (measurement, captureJob) => {
         moduleConfig: moduleConfig,
         captureJob: captureJob,
         imageCodec: imageCodec,
+        imageIdentifier: imageIdentifier,
         measClient: measClient
     });
 };
