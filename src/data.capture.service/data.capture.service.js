@@ -19,8 +19,7 @@ const defaultScriptContext = {
     measClient: measClient,
     imageCodec: require('../data.capture.utils/image.codec.jp2k'),
     imageIdentifier: require('../data.capture.utils/image.identifier'),
-    s3: require('../data.capture.utils/s3.api'),
-    log: async (message, level) => await jobDAO.insertCaptureJobEvent(ctx.captureJob?.id, level || 'Info', message)
+    s3: require('../data.capture.utils/s3.api')
 };
 
 exports.getCaptureJob = async (jobId) => {
@@ -278,6 +277,7 @@ const invokeScript = async (scriptName, scriptContext) => {
     console.log(`Invoking script "${scriptFile.name}", id ${scriptFile.id}, version ${scriptFile.version}`);
     const ctx = { ...defaultScriptContext, ...(scriptContext || {})};
     ctx.output = null;
+    ctx.log = async (message, level) => await jobDAO.insertCaptureJobEvent(ctx.captureJob?.id, level || 'Info', message);
     vm.createContext(ctx);
     vm.runInContext(scriptFile.value, ctx);
     return ctx.output;
