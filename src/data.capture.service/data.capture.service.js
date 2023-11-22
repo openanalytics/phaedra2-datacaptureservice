@@ -1,6 +1,5 @@
 'use strict';
 
-const path = require('path');
 const fs = require('fs');
 const vm = require('node:vm');
 
@@ -65,7 +64,12 @@ exports.executeCaptureJob = async (captureJob) => {
 
     try {
         const captureConfig = captureJob.captureConfig;
-        const sourcePath = path.join(captureUtils.getDefaultSourcePath(), captureJob.sourcePath);
+        
+        let sourcePath = captureJob.sourcePath;
+        //TODO Find a better way to distinguish tmp uploads from other source paths such as S3 URLs
+        if (!sourcePath.toLowerCase().startsWith("s3://")) {
+            sourcePath = `/usr/app/uploads/${sourcePath}`;
+        }
 
         if (!captureConfig.identifyMeasurements) throw "Capture config is missing the identifyMeasurements step";
         const measurements = await identifyMeasurements(sourcePath, captureJob);

@@ -120,7 +120,3 @@ exports.getUploadConfig = () => {
 
     return multer({storage: storage}).any()
 }
-
-exports.getDefaultSourcePath = () => {
-    return "/usr/app/uploads"
-}
