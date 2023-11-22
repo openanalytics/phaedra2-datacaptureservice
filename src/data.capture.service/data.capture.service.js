@@ -279,11 +279,19 @@ const invokeScript = async (scriptName, scriptContext) => {
     const scriptFile = await fileStoreService.getScriptStore().loadFileByName(scriptName);
     if (!scriptFile) throw `No script found with name "${scriptName}"`;
     console.log(`Invoking script "${scriptFile.name}", id ${scriptFile.id}, version ${scriptFile.version}`);
+    
     const ctx = { ...defaultScriptContext, ...(scriptContext || {})};
     ctx.output = null;
+    ctx.executionPromise = null;
     ctx.log = async (message, level) => await jobDAO.insertCaptureJobEvent(ctx.captureJob?.id, level || 'Info', message);
+
+    // Wrap in async function and return a promise, so the script itself can use async code too.
+    const wrappedCode = "wrapper = (async () => { " + scriptFile.value + " }); executionPromise = wrapper();";
+
     vm.createContext(ctx);
-    vm.runInContext(scriptFile.value, ctx);
+    vm.runInContext(wrappedCode, ctx);
+    await ctx.executionPromise;
+
     return ctx.output;
 }
 
