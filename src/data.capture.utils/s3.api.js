@@ -20,9 +20,14 @@ const makeS3URL = (bucket, key) => {
 }
 
 exports.download = async (inPath, outPath) => {
+    let contents = await exports.getBytes(inPath);
+    await fs.writeFile(outPath, contents);
+}
+
+exports.getBytes = async (inPath) => {
     let urlParts = splitS3URL(inPath);
     let res = await client.send(new GetObjectCommand({Bucket: urlParts.bucket, Key: urlParts.key}));
-    await fs.writeFile(outPath, res.Body);
+    return res.Body;
 }
 
 exports.list = async (path) => {
