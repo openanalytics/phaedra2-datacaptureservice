@@ -11,7 +11,7 @@ ENV IM_IDENTIFY_EXEC identify
 RUN apk add openjdk17
 
 RUN mkdir libs
-RUN java -jar /usr/app/ph2-imaging.jar copylibs /usr/app/libs
+RUN java -jar /usr/app/ph2-imaging.jar copylibs -d /usr/app/libs
 ENV LD_LIBRARY_PATH /usr/app/libs
 
 ENV NODE_OPTIONS="--max-old-space-size=16384"
