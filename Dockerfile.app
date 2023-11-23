@@ -3,7 +3,7 @@ WORKDIR /usr/app
 RUN mkdir uploads
 
 ENV PH2_IMAGING_LIB /usr/app/ph2-imaging.jar
-ADD https://nexus.openanalytics.eu/service/rest/v1/search/assets?repository=snapshots&group=eu.openanalytics.phaedra&name=phaedra2-imaging&maven.extension=jar&maven.classifier=exec&sort=version $PH2_IMAGING_LIB
+ADD https://nexus.openanalytics.eu/service/rest/v1/search/assets/download?repository=snapshots&group=eu.openanalytics.phaedra&name=phaedra2-imaging&maven.extension=jar&maven.classifier=exec&sort=version $PH2_IMAGING_LIB
 
 RUN apk add imagemagick
 ENV IM_IDENTIFY_EXEC identify
