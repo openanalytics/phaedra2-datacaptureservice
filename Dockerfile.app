@@ -8,6 +8,8 @@ ADD https://nexus.openanalytics.eu/service/rest/v1/search/assets?repository=snap
 RUN apk add imagemagick
 ENV IM_IDENTIFY_EXEC identify
 
+RUN apk add openjdk18
+
 ENV NODE_OPTIONS="--max-old-space-size=16384"
 
 COPY package*.json ./
