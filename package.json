@@ -1,6 +1,6 @@
 {
   "name": "phaedra2-datacaptureservice",
-  "version": "1.0.0",
+  "version": "2.0.2",
   "description": "",
   "main": "app.js",
   "scripts": {
