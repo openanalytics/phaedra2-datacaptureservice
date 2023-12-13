@@ -10,11 +10,13 @@ const dataCaptureProducer = require('./data.capture.producer.service');
 const fileStoreService = require('./file.store.service');
 const oauth2 = require('../data.capture.auth/oauth2.server');
 const captureUtils = require('../data.capture.utils/capture.utils');
+const sourcePathUtils = require('../data.capture.utils/source.path.utils');
 
 const defaultScriptContext = {
     console: console,
     require: require,
     captureUtils: captureUtils,
+    sourcePathUtils: sourcePathUtils,
     measClient: measClient,
     imageCodec: require('../data.capture.utils/image.codec.jp2k'),
     imageIdentifier: require('../data.capture.utils/image.identifier'),
