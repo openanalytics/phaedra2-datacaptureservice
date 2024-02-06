@@ -32,7 +32,7 @@ module.exports = {
     startDataCaptureJob: async (req, res, next) => {
         try {
             const captureConfig = req.body;
-            const sourcePath = req.query.sourcePath;
+            const sourcePath = decodeURIComponent((req.query.sourcePath || "").replace(/\+/g, " "));
             const job = await dcService.submitCaptureJob(sourcePath, captureConfig);
             res.send(job);
         } catch (err) {
