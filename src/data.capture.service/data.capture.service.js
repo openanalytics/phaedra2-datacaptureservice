@@ -205,6 +205,9 @@ async function checkForCancel(jobId) {
 }
 
 async function updateCaptureJob(job, newStatus, message) {
+    if (newStatus != job.statusCode) {
+        await jobDAO.insertCaptureJobEvent(job.id, newStatus, `Status changed to ${newStatus}`);
+    }
     await jobDAO.updateCaptureJob(job.id, newStatus, message);
     job.statusCode = newStatus;
     job.statusMessage = message;
