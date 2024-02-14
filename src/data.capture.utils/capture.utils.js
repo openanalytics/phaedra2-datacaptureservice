@@ -109,7 +109,7 @@ exports.getWellNrByPos = (rowNr, colNr, columnCount) => {
 exports.getUploadConfig = () => {
     const storage = multer.diskStorage({
         destination: (req, file, callback) => {
-            const uploadDir = path.join(this.getDefaultSourcePath(), req.query.destinationDir)
+            const uploadDir = path.join("/usr/app/uploads", req.query.destinationDir)
             fs.mkdirSync(uploadDir, {recursive: true})
             callback(null, uploadDir)
         },
