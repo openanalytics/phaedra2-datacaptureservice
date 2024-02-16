@@ -4,6 +4,7 @@ const fs = require('fs');
 const vm = require('node:vm');
 
 const measClient = require('../data.capture.client/meas.service.rest.client');
+const metadataClient = require('../data.capture.client/metadata.service.rest.client');
 const measProducer = require('../data.capture.client/measurement.producer')
 const jobDAO = require('../data.capture.dao/data.capture.job.dao');
 const dataCaptureProducer = require('./data.capture.producer.service');
@@ -18,6 +19,7 @@ const defaultScriptContext = {
     captureUtils: captureUtils,
     sourcePathUtils: sourcePathUtils,
     measClient: measClient,
+    metadataClient: metadataClient,
     imageCodec: require('../data.capture.utils/image.codec.jp2k'),
     imageIdentifier: require('../data.capture.utils/image.identifier'),
     s3: require('../data.capture.utils/s3.api')
@@ -100,6 +102,8 @@ exports.executeCaptureJob = async (captureJob) => {
 
                 cancelled = await checkForCancel(captureJob.id);
                 if (cancelled) break;
+
+                updateMeasurementMetadata(m);
 
                 await dataCaptureProducer.notifyCaptureJobUpdated({
                     ...captureJob,
@@ -214,6 +218,19 @@ async function updateCaptureJob(job, newStatus, message) {
     job.statusMessage = message;
     await dataCaptureProducer.notifyCaptureJobUpdated(job);
     return job;
+}
+
+async function updateMeasurementMetadata(measurement) {
+    if (measurement.properties) {
+        for (const [key, value] of Object.entries(measurement.properties)) {
+            await metadataClient.postProperty(measurement.id, key, value);
+        }
+    }
+    if (measurement.tags) {
+        for (const tag of measurement.tags) {
+            await metadataClient.postTag(measurement.id, tag);
+        }
+    }
 }
 
 const identifyMeasurements = async (sourcePath, captureJob) => {
