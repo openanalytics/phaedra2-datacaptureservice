@@ -20,6 +20,7 @@ pipeline {
                     env.VERSION = packageJson.version
                     env.REPO = "openanalytics/${env.ARTIFACT_ID}"
                     env.REGISTRY = "registry.openanalytics.eu"
+                    env.TAG = "${env.VERSION}"
                 }
             }
         }
@@ -33,7 +34,7 @@ pipeline {
                             --context ${env.WORKSPACE} \
                             --cache=true \
                             --cache-repo ${env.REGISTRY}/${env.REPO} \
-                            --destination ${env.REGISTRY}/${env.REPO} \
+                            --destination ${env.REGISTRY}/${env.REPO}:${env.TAG} \
                             --dockerfile Dockerfile.app
                     """
                 }
@@ -49,7 +50,7 @@ pipeline {
                             --context ${env.WORKSPACE} \
                             --cache=true \
                             --cache-repo ${env.REGISTRY}/${env.REPO}.liquibase \
-                            --destination ${env.REGISTRY}/${env.REPO}.liquibase \
+                            --destination ${env.REGISTRY}/${env.REPO}.liquibase:${env.TAG} \
                             --dockerfile Dockerfile.db
                     """
                 }
