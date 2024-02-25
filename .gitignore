@@ -5,3 +5,5 @@ src/.env
 /src/data.capture.test/.env
 /testdata/
 /test/
+/src/data.capture.parser/gather.viia7.welldata.js
+/src/data.capture.parser/identify.viia7.measurements.js
