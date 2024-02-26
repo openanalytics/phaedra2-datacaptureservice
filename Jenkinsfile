@@ -18,8 +18,10 @@ pipeline {
                     def packageJson = readJSON(text: readFile("./package.json").trim())
                     env.ARTIFACT_ID = packageJson.name
                     env.VERSION = packageJson.version
-                    env.REPO = "openanalytics/${env.ARTIFACT_ID}"
                     env.REGISTRY = "registry.openanalytics.eu"
+                    env.REPO = "openanalytics/${env.ARTIFACT_ID}"
+                    def versionMatch = (env.VERSION =~ /\d+\.\d+\.\d+(.*)/)
+                    env.REPO_SUFFIX = (versionMatch.matches() ? versionMatch.group(1) : "").toLowerCase()
                     env.TAG = "${env.VERSION}"
                 }
             }
@@ -34,7 +36,7 @@ pipeline {
                             --context ${env.WORKSPACE} \
                             --cache=true \
                             --cache-repo ${env.REGISTRY}/${env.REPO} \
-                            --destination ${env.REGISTRY}/${env.REPO}:${env.TAG} \
+                            --destination ${env.REGISTRY}/${env.REPO}${env.REPO_SUFFIX}:${env.TAG} \
                             --dockerfile Dockerfile.app
                     """
                 }
@@ -50,7 +52,7 @@ pipeline {
                             --context ${env.WORKSPACE} \
                             --cache=true \
                             --cache-repo ${env.REGISTRY}/${env.REPO}.liquibase \
-                            --destination ${env.REGISTRY}/${env.REPO}.liquibase:${env.TAG} \
+                            --destination ${env.REGISTRY}/${env.REPO}.liquibase${env.REPO_SUFFIX}:${env.TAG} \
                             --dockerfile Dockerfile.db
                     """
                 }
