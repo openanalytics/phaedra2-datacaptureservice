@@ -103,7 +103,7 @@ exports.executeCaptureJob = async (captureJob) => {
                 cancelled = await checkForCancel(captureJob.id);
                 if (cancelled) break;
 
-                updateMeasurementMetadata(m);
+                await updateMeasurementMetadata(m);
 
                 await dataCaptureProducer.notifyCaptureJobUpdated({
                     ...captureJob,
