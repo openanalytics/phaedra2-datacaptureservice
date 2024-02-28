@@ -277,15 +277,19 @@ const gatherSubWellData = async (measurement, captureJob) => {
         captureJob: captureJob
     });
 
-    for (const r of result) {
-        if (r.subWellData == null || r.subWellData.length == 0) continue;
+    measurement.subWellColumns = result.columns;
+    await measClient.putMeasurement(measurement);
 
-        measurement["subWellColumns"] = Object.keys(r.subWellData[0].data);
-        await measClient.putMeasurement(measurement);
-        for (const swData of r.subWellData) {
-            let dto = createSubWellDataDTO(measurement, swData);
-            await measProducer.requestMeasurementSaveSubwellData(dto);
-        }
+    for (const ds of result.data) {
+        if (ds == null) continue;
+        let dataObjects = Object.entries(ds.data).map(([key, value]) => ({
+            measurementId: measurement.id,
+            wellNr: ds.wellNr,
+            wellId: captureUtils.getWellNr(ds.wellNr, measurement.columns),
+            column: key,
+            data: value
+        }));
+        await measProducer.requestMeasurementSaveSubwellData(dataObjects);
     }
 }
 
@@ -320,16 +324,6 @@ const invokeScript = async (scriptName, scriptContext) => {
 
 const isEmptyOrWhitespace = (value) => {
     return /^[\s]*$/.test(value);
-}
-
-const createSubWellDataDTO = (measurement, subWellData) => {
-    return Object.entries(subWellData.data).map(([key, value]) => ({
-        measurementId: measurement.id,
-        wellId: captureUtils.getWellNr(subWellData.well, measurement.columns),
-        wellNr: subWellData.well,
-        column: key,
-        data: value
-    }));
 }
 
 class StatusError extends Error {
