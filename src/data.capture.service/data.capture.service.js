@@ -19,6 +19,7 @@ const defaultScriptContext = {
     captureUtils: captureUtils,
     sourcePathUtils: sourcePathUtils,
     measClient: measClient,
+    measKafkaClient: measProducer,
     metadataClient: metadataClient,
     imageCodec: require('../data.capture.utils/image.codec.jp2k'),
     imageIdentifier: require('../data.capture.utils/image.identifier'),
@@ -271,26 +272,11 @@ const gatherWellData = async (measurement, captureJob) => {
 
 const gatherSubWellData = async (measurement, captureJob) => {
     const moduleConfig = captureJob.captureConfig.gatherSubwellData;
-    const result = await invokeScript(moduleConfig.scriptId, {
+    await invokeScript(moduleConfig.scriptId, {
         measurement: measurement,
         moduleConfig: moduleConfig,
         captureJob: captureJob
     });
-
-    measurement.subWellColumns = result.columns;
-    await measClient.putMeasurement(measurement);
-
-    for (const ds of result.data) {
-        if (ds == null) continue;
-        let dataObjects = Object.entries(ds.data).map(([key, value]) => ({
-            measurementId: measurement.id,
-            wellNr: ds.wellNr,
-            wellId: captureUtils.getWellNr(ds.wellNr, measurement.columns),
-            column: key,
-            data: value
-        }));
-        await measProducer.requestMeasurementSaveSubwellData(dataObjects);
-    }
 }
 
 const gatherImageData = async (measurement, captureJob) => {
