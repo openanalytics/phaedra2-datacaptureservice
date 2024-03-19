@@ -114,17 +114,14 @@ exports.executeCaptureJob = async (captureJob) => {
             }
         }
 
-        if (!cancelled) {
+        if (cancelled) {
+            await handleAbortJob(captureJob, measurements);
+        } else {
             await updateCaptureJob(captureJob, 'Completed');
         }
     } catch (err) {
-        try {
-            for (const m of measurements) {
-                await measClient.deleteMeasurement(m.id);
-            }
-        } finally {
-            await updateCaptureJob(captureJob, 'Error', err.toString());
-        }
+        await handleAbortJob(captureJob, measurements);
+        await updateCaptureJob(captureJob, 'Error', err.toString());
     }
 }
 
@@ -213,6 +210,16 @@ function canEditFile(accessToken, file) {
 async function checkForCancel(jobId) {
     let currentJob = await jobDAO.getCaptureJob(jobId);
     return (currentJob.statusCode === 'Cancelled');
+}
+
+async function handleAbortJob(job, measurements) {
+    for (const m of measurements) {
+        try {
+            await measClient.deleteMeasurement(m.id);
+        } catch (err) {
+            console.log(`Error while deleting measurement ${m.id}: ${err}`);
+        }
+    }
 }
 
 async function updateCaptureJob(job, newStatus, message) {
