@@ -67,6 +67,7 @@ exports.executeCaptureJob = async (captureJob) => {
     }
     await updateCaptureJob(captureJob, 'Running');
 
+    let measurements = [];
     try {
         const captureConfig = captureJob.captureConfig;
         
@@ -77,7 +78,7 @@ exports.executeCaptureJob = async (captureJob) => {
         }
 
         if (!captureConfig.identifyMeasurements) throw "Capture config is missing the identifyMeasurements step";
-        const measurements = await identifyMeasurements(sourcePath, captureJob);
+        measurements = await identifyMeasurements(sourcePath, captureJob);
         await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', `${measurements.length} measurement(s) identified`);
 
         let cancelled = false;
@@ -213,7 +214,7 @@ async function checkForCancel(jobId) {
 }
 
 async function handleAbortJob(job, measurements) {
-    for (const m of measurements) {
+    for (const m of (measurements || [])) {
         try {
             await measClient.deleteMeasurement(m.id);
         } catch (err) {
