@@ -118,7 +118,13 @@ exports.executeCaptureJob = async (captureJob) => {
             await updateCaptureJob(captureJob, 'Completed');
         }
     } catch (err) {
-        await updateCaptureJob(captureJob, 'Error', err.toString());
+        try {
+            for (const m of measurements) {
+                await measClient.deleteMeasurement(m.id);
+            }
+        } finally {
+            await updateCaptureJob(captureJob, 'Error', err.toString());
+        }
     }
 }
 

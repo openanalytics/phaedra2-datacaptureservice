@@ -21,6 +21,12 @@ const measServiceAPI = {
         measurement.id = response.data.id;
     },
 
+    deleteMeasurement: async (measurementId) => {
+        const url = makeURL(`/measurements/${measurementId}`);
+        const headers = await buildRequestHeaders();
+        await axios.delete(url, { headers: headers });
+    },
+
     postImageData: async (measId, wellNr, channelId, imageData) => {
         console.log(`Uploading imageData for meas ${measId}, well ${wellNr}, channel ${channelId}: ${imageData.length} bytes`);
         const url = makeURL(`/measurements/${measId}/imagedata/${wellNr}/${channelId}`);
