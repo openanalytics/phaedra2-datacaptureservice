@@ -123,7 +123,6 @@ exports.executeCaptureJob = async (captureJob) => {
     } catch (err) {
         await handleAbortJob(captureJob, measurements);
         await updateCaptureJob(captureJob, 'Error', err.toString());
-        throw err;
     }
 }
 
