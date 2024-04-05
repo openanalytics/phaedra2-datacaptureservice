@@ -1,12 +1,15 @@
 const kafkaConfig = require('../data.capture.config/kafka.config')
+const shutdownHandler = require('../data.capture.utils/shutdown.handler');
 
 const producer = kafkaConfig.makeProducer({
     allowAutoTopicCreation: false
 });
 
+shutdownHandler(async () => await producer.disconnect());
+producer.connect();
+
 module.exports = {
     requestMeasurementSaveWellData: async (wellData) => {
-        await producer.connect()
         try {
             await producer.send({
                 topic: kafkaConfig.TOPIC_MEASUREMENTS,
@@ -20,10 +23,8 @@ module.exports = {
         } catch (err) {
             console.error("could not write message " + err)
         }
-        await producer.disconnect();
     },
     requestMeasurementSaveSubwellData: async (subwellData) => {
-        await producer.connect()
         try {
             for (const swData of subwellData) {
                 await producer.send({
@@ -39,6 +40,5 @@ module.exports = {
         } catch (err) {
             console.error("could not write message " + err)
         }
-        await producer.disconnect();
     }
 };
