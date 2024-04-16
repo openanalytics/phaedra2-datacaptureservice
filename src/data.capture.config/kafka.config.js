@@ -1,4 +1,4 @@
-const { Kafka } = require('kafkajs');
+const { Kafka, logLevel } = require('kafkajs');
 
 // Brokers
 const BROKERS = [ process.env.KAFKA_SERVERS ];
