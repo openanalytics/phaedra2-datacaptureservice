@@ -28,7 +28,8 @@ exports.makeConsumer = (opts) => {
 exports.makeProducer = (opts) => {
     let kafka = new Kafka({
         clientId: CLIENT_ID,
-        brokers: BROKERS
+        brokers: BROKERS,
+        logLevel: logLevel.DEBUG
     });
     return kafka.producer(opts);
 }
