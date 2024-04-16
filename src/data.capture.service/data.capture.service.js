@@ -123,6 +123,7 @@ exports.executeCaptureJob = async (captureJob) => {
     } catch (err) {
         await handleAbortJob(captureJob, measurements);
         await updateCaptureJob(captureJob, 'Error', err.toString());
+        console.error(`An error occurred while executing capture job ${captureJob.id}`, err);
     }
 }
 
