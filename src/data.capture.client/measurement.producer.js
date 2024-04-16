@@ -24,13 +24,15 @@ module.exports = {
     },
     requestMeasurementSaveSubwellData: async (subwellData) => {
         try {
-            await producer.send({
-                topic: kafkaConfig.TOPIC_MEASUREMENTS,
-                messages: subwellData.map(swData => { return {
-                    key: kafkaConfig.EVENT_REQ_MEAS_SAVE_SUBWELL_DATA,
-                    value: JSON.stringify(swData)
-                };})
-            })
+            for (const swData of subwellData) {
+                await producer.send({
+                    topic: kafkaConfig.TOPIC_MEASUREMENTS,
+                    messages: [{
+                        key: kafkaConfig.EVENT_REQ_MEAS_SAVE_SUBWELL_DATA,
+                        value: JSON.stringify(swData)
+                    }]
+                })
+            }
         } catch (err) {
             console.error("could not write message " + err)
         }
