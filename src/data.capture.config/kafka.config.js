@@ -1,4 +1,4 @@
-const { Kafka, logLevel } = require('kafkajs');
+const { Kafka } = require('kafkajs');
 
 // Brokers
 const BROKERS = [ process.env.KAFKA_SERVERS ];
@@ -28,8 +28,7 @@ exports.makeConsumer = (opts) => {
 exports.makeProducer = (opts) => {
     let kafka = new Kafka({
         clientId: CLIENT_ID,
-        brokers: BROKERS,
-        logLevel: logLevel.DEBUG
+        brokers: BROKERS
     });
     return kafka.producer(opts);
 }
