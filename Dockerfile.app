@@ -1,4 +1,4 @@
-FROM registry.openanalytics.eu/proxy/library/node:18.12
+FROM registry.openanalytics.eu/proxy/library/node:21
 WORKDIR /usr/app
 RUN mkdir uploads
 
