@@ -131,6 +131,12 @@ exports.completeCurrentStep = async (activeJob, stepOutput) => {
             activeJobs.splice(activeJobs.indexOf(activeJob), 1);
         }
     } else {
+        if (stepOutput) {
+            // TODO Check if this can be done in a different way: scripts may add things to the measurement objects
+            // which may be needed by the next script
+            activeJob.measurements[activeJob.currentMeasurementIndex] = stepOutput;
+        }
+
         if (activeJob.status == ActiveJobStatus.CapturingWellData) {
             activeJob.status = ActiveJobStatus.CapturingSubWellData;
         } else if (activeJob.status == ActiveJobStatus.CapturingSubWellData) {
@@ -158,7 +164,6 @@ exports.invokeCurrentStep = async (activeJob) => {
     }
 
     if (stepConfig) {
-        console.log(`Invoking script for step ${activeJob.status} on measurement ${activeJob.measurements[activeJob.currentMeasurementIndex]}`);
         const requestID = await invokeScript(stepConfig.scriptId, {
             measurement: activeJob.measurements[activeJob.currentMeasurementIndex],
             moduleConfig: stepConfig,
