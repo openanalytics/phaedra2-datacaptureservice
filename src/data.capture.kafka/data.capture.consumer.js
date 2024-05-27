@@ -1,5 +1,5 @@
-const dcService = require('./data.capture.service')
-const kafkaConfig = require('../data.capture.config/kafka.config')
+const kafkaConfig = require('./kafka.config')
+const dcService = require('../data.capture.service/data.capture.service')
 
 const consumer = kafkaConfig.makeConsumer({ groupId: kafkaConfig.GROUP_ID });
 

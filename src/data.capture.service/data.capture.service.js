@@ -1,30 +1,27 @@
 'use strict';
 
-const fs = require('fs');
-const vm = require('node:vm');
+/*
+ * TODO: support for file uploads, make them available to the js-worker somehow
+ */
 
-const measClient = require('../data.capture.client/meas.service.rest.client');
-const metadataClient = require('../data.capture.client/metadata.service.rest.client');
-const measProducer = require('../data.capture.client/measurement.producer')
+const crypto = require('crypto');
 const jobDAO = require('../data.capture.dao/data.capture.job.dao');
-const dataCaptureProducer = require('./data.capture.producer.service');
 const fileStoreService = require('./file.store.service');
 const oauth2 = require('../data.capture.auth/oauth2.server');
-const captureUtils = require('../data.capture.utils/capture.utils');
-const sourcePathUtils = require('../data.capture.utils/source.path.utils');
 
-const defaultScriptContext = {
-    console: console,
-    require: require,
-    captureUtils: captureUtils,
-    sourcePathUtils: sourcePathUtils,
-    measClient: measClient,
-    measKafkaClient: measProducer,
-    metadataClient: metadataClient,
-    imageCodec: require('../data.capture.utils/image.codec.jp2k'),
-    imageIdentifier: require('../data.capture.utils/image.identifier'),
-    s3: require('../data.capture.utils/s3.api')
-};
+const measurementServiceClient = require('../data.capture.rest.client/measurement.service.client');
+const metadataServiceClient = require('../data.capture.rest.client/metadata.service.client');
+const scriptEngineProducer = require('../data.capture.kafka/scriptengine.producer');
+const dataCaptureProducer = require('../data.capture.kafka/data.capture.producer');
+
+const activeJobs = [];
+
+const ActiveJobStatus = {
+    IdentifyingMeasurements: 1,
+    CapturingWellData: 2,
+    CapturingSubWellData: 3,
+    CapturingImageData: 4
+}
 
 exports.getCaptureJob = async (jobId) => {
     const captureJob = await jobDAO.getCaptureJob(jobId);
@@ -42,12 +39,7 @@ exports.getCaptureJobs = async (fromDate, toDate) => {
 
 exports.submitCaptureJob = async (sourcePath, captureConfig) => {
     const captureJob = await jobDAO.insertCaptureJob('System', sourcePath, captureConfig);
-
-    // Here, we could schedule or queue the job execution in some fashion,
-    // e.g. to apply throttling or delay if there are too many jobs running.
-    // Currently, the job is executed immediately, in an async call without waiting for it to complete.
     this.executeCaptureJob(captureJob);
-
     return captureJob;
 }
 
@@ -60,70 +52,121 @@ exports.cancelCaptureJob = async (captureJobId) => {
 }
 
 exports.executeCaptureJob = async (captureJob) => {
-    console.log('Executing capture job: ' + JSON.stringify(captureJob));
-
     if (captureJob.id === undefined) {
         captureJob = await jobDAO.insertCaptureJob('System', captureJob.sourcePath, captureJob.captureConfig);
     }
+
+    console.log(`Executing capture job ${captureJob.id} on sourcePath: ${captureJob.sourcePath}`);
     await updateCaptureJob(captureJob, 'Running');
 
-    let measurements = [];
+    const activeJob = {
+        status: ActiveJobStatus.IdentifyingMeasurements,
+        job: captureJob,
+        activeScriptIds: []
+    };
+    activeJobs.push(activeJob);
+
     try {
-        const captureConfig = captureJob.captureConfig;
-        
-        let sourcePath = captureJob.sourcePath;
-        //TODO Find a better way to distinguish tmp uploads from other source paths such as S3 URLs
-        if (!sourcePath.toLowerCase().startsWith("s3://")) {
-            sourcePath = `/usr/app/uploads/${sourcePath}`;
-        }
-
-        if (!captureConfig.identifyMeasurements) throw "Capture config is missing the identifyMeasurements step";
-        measurements = await identifyMeasurements(sourcePath, captureJob);
-        await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', `${measurements.length} measurement(s) identified`);
-
-        let cancelled = false;
-        if (measurements && measurements.length > 0) {
-            for (const m of measurements) {
-                await measClient.postMeasurement(m);
-
-                if (captureConfig.gatherWellData) {
-                    await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement well data for ' + m.barcode);
-                    await gatherWellData(m, captureJob);
-                }
-
-                if (captureConfig.gatherSubwellData) {
-                    await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement subwell data for ' + m.barcode);
-                    //TODO: Stream to the MeasurementService after the well data has been sent, in parallel with image data
-                    await gatherSubWellData(m, captureJob);
-                }
-
-                if (captureConfig.gatherImageData) {
-                    await jobDAO.insertCaptureJobEvent(captureJob.id, 'Info', 'Processing measurement image data for ' + m.barcode);
-                    await gatherImageData(m, captureJob);
-                }
-
-                cancelled = await checkForCancel(captureJob.id);
-                if (cancelled) break;
-
-                await updateMeasurementMetadata(m);
-
-                await dataCaptureProducer.notifyCaptureJobUpdated({
-                    ...captureJob,
-                    measurementId: m.id,
-                    barcode: m.barcode,
-                });
-            }
-        }
-
-        if (cancelled) {
-            await handleAbortJob(captureJob, measurements);
-        } else {
-            await updateCaptureJob(captureJob, 'Completed');
-        }
+        // Invoke first step: identifyMeasurements
+        const moduleConfig = captureJob.captureConfig.identifyMeasurements;
+        if (!moduleConfig) throw "Capture config is missing the 'identifyMeasurements' step";
+        const requestID = await invokeScript(moduleConfig.scriptId, {
+            sourcePath: captureJob.sourcePath,
+            moduleConfig: moduleConfig,
+            captureJob: captureJob
+        });
+        activeJob.activeScriptIds.push(requestID);
     } catch (err) {
-        await handleAbortJob(captureJob, measurements);
-        await updateCaptureJob(captureJob, 'Error', err.toString());
-        console.error(`An error occurred while executing capture job ${captureJob.id}`, err);
+        handleAbortJob(activeJob, err);
+    }
+}
+
+exports.processScriptExecutionUpdate = async (update) => {
+    const activeJob = activeJobs.find(job => job.activeScriptIds.includes(update.inputId));
+    if (!activeJob) {
+        console.log(`Ignoring unknown script execution update: ${update.inputId}`);
+        return;
+    }
+
+    // Remove the ID from the list of active script IDs
+    activeJob.activeScriptIds.splice(activeJob.activeScriptIds.indexOf(update.inputId), 1);
+
+    if (update.statusCode == "SCRIPT_ERROR") {
+        handleAbortJob(activeJob, update.statusMessage);
+        return;
+    }
+
+    console.log(`Script ${update.inputId} finished`);
+    this.completeCurrentStep(activeJob, update.output);
+}
+
+exports.completeCurrentStep = async (activeJob, stepOutput) => {
+    if (activeJob.status == ActiveJobStatus.IdentifyingMeasurements) {
+        // Note: assuming here that the script output was not stringified
+        activeJob.measurements = stepOutput;
+        for (const meas of activeJob.measurements) {
+            await measurementServiceClient.postMeasurement(meas);
+        }
+        activeJob.currentMeasurementIndex = 0;
+        activeJob.status = ActiveJobStatus.CapturingWellData;
+        this.invokeCurrentStep(activeJob);
+    } else if (activeJob.status == ActiveJobStatus.CapturingImageData) {
+        // Current measurement completed all modules, finalize it...
+        const completedMeasurement = activeJob.measurements[activeJob.currentMeasurementIndex];
+        await updateMeasurementMetadata(completedMeasurement);
+        await dataCaptureProducer.notifyCaptureJobUpdated({
+            ...activeJob.job,
+            measurementId: completedMeasurement.id,
+            barcode: completedMeasurement.barcode,
+        });
+
+        activeJob.currentMeasurementIndex++;
+        if (activeJob.currentMeasurementIndex < activeJob.measurements.length) {
+            // Proceed to the next measurement.
+            activeJob.status = ActiveJobStatus.CapturingWellData;
+            this.invokeCurrentStep(activeJob);
+        } else {
+            // All measurements have been processed: job ends here.
+            await updateCaptureJob(activeJob.job, 'Completed');
+            activeJobs.splice(activeJobs.indexOf(activeJob), 1);
+        }
+    } else {
+        if (activeJob.status == ActiveJobStatus.CapturingWellData) {
+            activeJob.status = ActiveJobStatus.CapturingSubWellData;
+        } else if (activeJob.status == ActiveJobStatus.CapturingSubWellData) {
+            activeJob.status = ActiveJobStatus.CapturingImageData;
+        }
+        this.invokeCurrentStep(activeJob);
+    }
+}
+
+exports.invokeCurrentStep = async (activeJob) => {
+    const jobIsCancelled = await checkForCancel(activeJob.job.id);
+    if (jobIsCancelled) {
+        handleAbortJob(activeJob);
+        return;
+    }
+
+    let stepConfig = null;
+
+    if (activeJob.status == ActiveJobStatus.CapturingWellData) {
+        stepConfig = activeJob.job.captureConfig.gatherWellData;
+    } else if (activeJob.status == ActiveJobStatus.CapturingSubWellData) {
+        stepConfig = activeJob.job.captureConfig.gatherSubwellData;
+    } else if (activeJob.status == ActiveJobStatus.CapturingImageData) {
+        stepConfig = activeJob.job.captureConfig.gatherImageData;
+    }
+
+    if (stepConfig) {
+        console.log(`Invoking script for step ${activeJob.status} on measurement ${activeJob.measurements[activeJob.currentMeasurementIndex]}`);
+        const requestID = await invokeScript(stepConfig.scriptId, {
+            measurement: activeJob.measurements[activeJob.currentMeasurementIndex],
+            moduleConfig: stepConfig,
+            captureJob: activeJob.job
+        });
+        activeJob.activeScriptIds.push(requestID);
+    } else {
+        this.completeCurrentStep(activeJob);
     }
 }
 
@@ -214,10 +257,14 @@ async function checkForCancel(jobId) {
     return (currentJob.statusCode === 'Cancelled');
 }
 
-async function handleAbortJob(job, measurements) {
-    for (const m of (measurements || [])) {
+async function handleAbortJob(activeJob, error) {
+    if (error) {
+        await updateCaptureJob(activeJob.job, 'Error', error.toString());
+        console.error(`An error occurred executing capture job ${activeJob.job.id}`, error);
+    }
+    for (const m of (activeJob.measurements || [])) {
         try {
-            await measClient.deleteMeasurement(m.id);
+            await measurementServiceClient.deleteMeasurement(m.id);
         } catch (err) {
             console.log(`Error while deleting measurement ${m.id}: ${err}`);
         }
@@ -239,92 +286,29 @@ async function updateCaptureJob(job, newStatus, message) {
 async function updateMeasurementMetadata(measurement) {
     if (measurement.properties) {
         for (const [key, value] of Object.entries(measurement.properties)) {
-            await metadataClient.postProperty(measurement.id, key, value);
+            await metadataServiceClient.postProperty(measurement.id, key, value);
         }
     }
     if (measurement.tags) {
         for (const tag of measurement.tags) {
-            await metadataClient.postTag(measurement.id, tag);
+            await metadataServiceClient.postTag(measurement.id, tag);
         }
     }
 }
 
-const identifyMeasurements = async (sourcePath, captureJob) => {
-    const moduleConfig = captureJob.captureConfig.identifyMeasurements;
-    return await invokeScript(moduleConfig.scriptId, {
-        sourcePath: sourcePath,
-        moduleConfig: moduleConfig,
-        captureJob: captureJob
-    });
-}
-
-const gatherWellData = async (measurement, captureJob) => {
-    const moduleConfig = captureJob.captureConfig.gatherWellData;
-    const result = await invokeScript(moduleConfig.scriptId, {
-        measurement: measurement,
-        moduleConfig: moduleConfig,
-        captureJob: captureJob
-    });
-
-    const wellCount = result.rows * result.columns;
-    measurement["rows"] = result.rows
-    measurement["columns"] = result.columns
-    measurement["wellColumns"] = result.wellColumns.filter(column => !isEmptyOrWhitespace(column))
-    await measClient.putMeasurement(measurement)
-
-    const sendWellDataPromises = Object.entries(result.welldata).map(([column, data]) => {
-        if (column == null || column == '' || data == null || data.length == 0) return Promise.resolve(0);
-        while (data.length < wellCount) data.push(NaN);
-        return measProducer.requestMeasurementSaveWellData({
-            measurementId: measurement.id,
-            column: column,
-            data: data
-        });
-    });
-
-    await Promise.all(sendWellDataPromises);
-}
-
-const gatherSubWellData = async (measurement, captureJob) => {
-    const moduleConfig = captureJob.captureConfig.gatherSubwellData;
-    await invokeScript(moduleConfig.scriptId, {
-        measurement: measurement,
-        moduleConfig: moduleConfig,
-        captureJob: captureJob
-    });
-}
-
-const gatherImageData = async (measurement, captureJob) => {
-    const moduleConfig = captureJob.captureConfig.gatherImageData;
-    await invokeScript(moduleConfig.scriptId, {
-        measurement: measurement,
-        moduleConfig: moduleConfig,
-        captureJob: captureJob
-    });
-};
-
 const invokeScript = async (scriptName, scriptContext) => {
     const scriptFile = await fileStoreService.getScriptStore().loadFileByName(scriptName);
     if (!scriptFile) throw `No script found with name "${scriptName}"`;
-    console.log(`Invoking script "${scriptFile.name}", id ${scriptFile.id}, version ${scriptFile.version}`);
+    console.log(`Executing script "${scriptFile.name}", id ${scriptFile.id}, version ${scriptFile.version}`);
     
-    const ctx = { ...defaultScriptContext, ...(scriptContext || {})};
-    ctx.output = null;
-    ctx.executionPromise = null;
-    ctx.log = async (message, level) => await jobDAO.insertCaptureJobEvent(ctx.captureJob?.id, level || 'Info', message);
-
-    // Wrap in async function and return a promise, so the script itself can use async code too.
-    const wrappedCode = "wrapper = (async () => { " + scriptFile.value + " }); executionPromise = wrapper();";
-
-    vm.createContext(ctx);
-    vm.runInContext(wrappedCode, ctx);
-    await ctx.executionPromise;
-
-    return ctx.output;
-}
-
-const isEmptyOrWhitespace = (value) => {
-    return /^[\s]*$/.test(value);
+    const request = {
+        id: crypto.randomUUID(),
+        language: "JS",
+        script: scriptFile.value,
+        input: JSON.stringify(scriptContext)
+    };
+    await scriptEngineProducer.requestScriptExecution(request);
+    return request.id;
 }
 
 class StatusError extends Error {

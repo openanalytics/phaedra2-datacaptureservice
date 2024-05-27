@@ -33,9 +33,8 @@ const serviceAPI = {
 module.exports = serviceAPI;
 
 function makeURL(path) {
-    const host = process.env.METADATA_SERVICE_HOST || 'http://localhost'
-    const port = process.env.PORT || 3008
-    return `${host}:${port}/phaedra/metadata-service${path}`;
+    const host = process.env.METADATA_SERVICE_HOST || 'http://localhost:3008'
+    return `${host}/phaedra/metadata-service${path}`;
 }
 
 async function buildRequestHeaders(isBinary) {

@@ -6,7 +6,6 @@ const bodyParser = require('body-parser');
 const swaggerUI = require('swagger-ui-express')
 const swaggerFile = require('../swagger_output.json')
 
-
 const dcRoutes = require('./data.capture.api/routes/data.capture.routes');
 const sjRoutes = require('./data.capture.api/routes/scan.job.routes');
 
@@ -24,5 +23,8 @@ app.listen(port, function () {
 });
 
 
-// const dataCaptureConsumer = require('./service/data.capture.kafka.consumer.service')
+// const dataCaptureConsumer = require('./data.capture.kafka/data.capture.consumer');
 // dataCaptureConsumer.run().catch(console.error)
+
+const scriptEngineConsumer = require('./data.capture.kafka/scriptengine.consumer');
+scriptEngineConsumer.run().catch(console.error);

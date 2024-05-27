@@ -44,10 +44,10 @@ const measServiceAPI = {
 module.exports = measServiceAPI;
 
 function makeURL(path) {
-    const host = process.env.MEAS_SERVICE_HOST || 'http://localhost'
-    const port = process.env.PORT || 3008
-    return `${host}:${port}/phaedra/measurement-service${path}`;
+    const host = process.env.MEASUREMENT_SERVICE_HOST || 'http://localhost:3008'
+    return `${host}/phaedra/measurement-service${path}`;
 }
+
 
 async function buildRequestHeaders(isBinary) {
     const token = await oauth2.getAccessToken();
