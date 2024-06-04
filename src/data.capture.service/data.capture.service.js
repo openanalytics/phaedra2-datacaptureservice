@@ -104,14 +104,17 @@ exports.completeCurrentStep = async (activeJob, stepOutput) => {
     if (activeJob.status == ActiveJobStatus.IdentifyingMeasurements) {
         // Note: assuming here that the script output was not stringified
         activeJob.measurements = stepOutput;
+
         for (const meas of activeJob.measurements) {
             await measurementServiceClient.postMeasurement(meas);
         }
+
+        // Proceed with CapturingWellData of the first measurement
         activeJob.currentMeasurementIndex = 0;
         activeJob.status = ActiveJobStatus.CapturingWellData;
         this.invokeCurrentStep(activeJob);
     } else if (activeJob.status == ActiveJobStatus.CapturingImageData) {
-        // Current measurement completed all modules, finalize it...
+        // Current measurement has been fully captured, persist it.
         const completedMeasurement = activeJob.measurements[activeJob.currentMeasurementIndex];
         await updateMeasurementMetadata(completedMeasurement);
         await dataCaptureProducer.notifyCaptureJobUpdated({
@@ -120,21 +123,23 @@ exports.completeCurrentStep = async (activeJob, stepOutput) => {
             barcode: completedMeasurement.barcode,
         });
 
+        // Then proceed to the next measurement, or end the job if all measurements are done.
         activeJob.currentMeasurementIndex++;
         if (activeJob.currentMeasurementIndex < activeJob.measurements.length) {
-            // Proceed to the next measurement.
             activeJob.status = ActiveJobStatus.CapturingWellData;
             this.invokeCurrentStep(activeJob);
         } else {
-            // All measurements have been processed: job ends here.
             await updateCaptureJob(activeJob.job, 'Completed');
             activeJobs.splice(activeJobs.indexOf(activeJob), 1);
         }
     } else {
-        if (stepOutput) {
-            // TODO Check if this can be done in a different way: scripts may add things to the measurement objects
-            // which may be needed by the next script
-            activeJob.measurements[activeJob.currentMeasurementIndex] = stepOutput;
+        // A stage (welldata, subwelldata, imagedata) has been completed for the current measurement.
+
+        if (stepOutput.measurement) {
+            // If the script modified the measurement object (e.g. added properties or metadata), update it.
+            activeJob.measurements[activeJob.currentMeasurementIndex] = stepOutput.measurement;
+            await measurementServiceClient.putMeasurement(stepOutput.measurement);
+            await updateMeasurementMetadata(stepOutput.measurement);
         }
 
         if (activeJob.status == ActiveJobStatus.CapturingWellData) {
