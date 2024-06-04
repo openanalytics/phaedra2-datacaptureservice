@@ -116,6 +116,7 @@ exports.completeCurrentStep = async (activeJob, stepOutput) => {
     } else if (activeJob.status == ActiveJobStatus.CapturingImageData) {
         // Current measurement has been fully captured, persist it.
         const completedMeasurement = activeJob.measurements[activeJob.currentMeasurementIndex];
+        await measurementServiceClient.putMeasurement(completedMeasurement);
         await updateMeasurementMetadata(completedMeasurement);
         await dataCaptureProducer.notifyCaptureJobUpdated({
             ...activeJob.job,
@@ -135,11 +136,9 @@ exports.completeCurrentStep = async (activeJob, stepOutput) => {
     } else {
         // A stage (welldata, subwelldata, imagedata) has been completed for the current measurement.
 
-        if (stepOutput.measurement) {
+        if (stepOutput?.measurement) {
             // If the script modified the measurement object (e.g. added properties or metadata), update it.
             activeJob.measurements[activeJob.currentMeasurementIndex] = stepOutput.measurement;
-            await measurementServiceClient.putMeasurement(stepOutput.measurement);
-            await updateMeasurementMetadata(stepOutput.measurement);
         }
 
         if (activeJob.status == ActiveJobStatus.CapturingWellData) {
@@ -169,8 +168,11 @@ exports.invokeCurrentStep = async (activeJob) => {
     }
 
     if (stepConfig) {
+        const currentMeas = activeJob.measurements[activeJob.currentMeasurementIndex];
+        await logCaptureJobEvent(activeJob.job.id, "Info", `Measurement ${currentMeas.name}: invoking ${stepConfig.scriptId}`);
+
         const requestID = await invokeScript(stepConfig.scriptId, {
-            measurement: activeJob.measurements[activeJob.currentMeasurementIndex],
+            measurement: currentMeas,
             moduleConfig: stepConfig,
             captureJob: activeJob.job
         });
@@ -284,13 +286,17 @@ async function handleAbortJob(activeJob, error) {
 async function updateCaptureJob(job, newStatus, message) {
     if (newStatus != job.statusCode) {
         const eventCode = (newStatus == "Error") ? "Error" : "Info";
-        await jobDAO.insertCaptureJobEvent(job.id, eventCode, `Status changed to ${newStatus}`);
+        await logCaptureJobEvent(job.id, eventCode, `Status changed to ${newStatus}`);
     }
     await jobDAO.updateCaptureJob(job.id, newStatus, message);
     job.statusCode = newStatus;
     job.statusMessage = message;
     await dataCaptureProducer.notifyCaptureJobUpdated(job);
     return job;
+}
+
+async function logCaptureJobEvent(jobId, eventCode, message) {
+    await jobDAO.insertCaptureJobEvent(jobId, eventCode, message);
 }
 
 async function updateMeasurementMetadata(measurement) {
