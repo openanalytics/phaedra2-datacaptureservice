@@ -6,7 +6,4 @@ src/.env
 /testdata/
 /test/
 .env
-/uploads/testDir/210324_Transfer4_viability_HTS_P12_6h_T0_wk12_Welldatax.xlsx
-/uploads/testDir/210615_IRAK2_Cell sync_6H degrader double readout_wk24_Platelist.xlsx
-/uploads/testDir/221121_GT912P_hitconf_HTS4_24hours_repeat_wk47_part1_Welldata.xlsx
-/uploads/testDir/221121_GT912P_hitconf_HTS4_24hours_repeat_wk47_part1_Welldata (1).xlsx
+/uploads/testDir/
