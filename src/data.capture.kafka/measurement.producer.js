@@ -1,4 +1,4 @@
-const kafkaConfig = require('../data.capture.config/kafka.config')
+const kafkaConfig = require('./kafka.config')
 const shutdownHandler = require('../data.capture.utils/shutdown.handler');
 
 const producer = kafkaConfig.makeProducer({
