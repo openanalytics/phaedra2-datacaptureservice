@@ -16,10 +16,12 @@ release_version=${current_version/-SNAPSHOT/}
 echo "The current version is: $current_version"
 echo "The release version is: $release_version"
 
-major_minor_nr=`echo "$release_version" | sed -n 's/\([[:digit:]]\+\.[[:digit:]]\+\.\)[[:digit:]]\+/\1/ p'`
+major_nr=`echo "$release_version" | sed -n 's/\([[:digit:]]\+\)\.[[:digit:]]\+\.[[:digit:]]\+/\1/ p'`
+minor_nr=`echo "$release_version" | sed -n 's/[[:digit:]]\+\.\([[:digit:]]\+\)\.[[:digit:]]\+/\1/ p'`
 rev_nr=`echo "$release_version" | sed -n 's/[[:digit:]]\+\.[[:digit:]]\+\.\([[:digit:]]\+\)/\1/ p'`
-next_rev_nr=$((rev_nr+1))
-next_version="$major_minor_nr$next_rev_nr-SNAPSHOT"
+
+next_minor_nr=$((minor_nr+1))
+next_version="$major_nr.$next_minor_nr.0-SNAPSHOT"
 echo "The next development version is: $next_version"
 
 # --------------------------------------------------------------
