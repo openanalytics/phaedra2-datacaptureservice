@@ -43,6 +43,10 @@ exports.submitCaptureJob = async (captureJobRequest) => {
         captureJobRequest.captureConfig = await this.getCaptureConfiguration(captureJobRequest.captureConfigId);
     }
     const captureJob = await jobDAO.insertCaptureJob('System', captureJobRequest.sourcePath, captureJobRequest.captureConfig);
+    if (captureJobRequest.properties) {
+        // If the request includes any properties, attach them to the job also
+        captureJob.properties = captureJobRequest.properties;
+    }
     this.executeCaptureJob(captureJob);
     return captureJob;
 }
@@ -121,7 +125,7 @@ exports.completeCurrentStep = async (activeJob, stepOutput) => {
         // Current measurement has been fully captured, persist it.
         const completedMeasurement = activeJob.measurements[activeJob.currentMeasurementIndex];
         await measurementServiceClient.putMeasurement(completedMeasurement);
-        await updateMeasurementMetadata(completedMeasurement);
+        await updateMeasurementMetadata(completedMeasurement, activeJob.job.properties);
         await dataCaptureProducer.notifyCaptureJobUpdated({
             ...activeJob.job,
             measurementId: completedMeasurement.id,
@@ -303,7 +307,7 @@ async function logCaptureJobEvent(jobId, eventCode, message) {
     await jobDAO.insertCaptureJobEvent(jobId, eventCode, message);
 }
 
-async function updateMeasurementMetadata(measurement) {
+async function updateMeasurementMetadata(measurement, additionalProperties) {
     if (measurement.properties) {
         for (const [key, value] of Object.entries(measurement.properties)) {
             await metadataServiceClient.postProperty(measurement.id, key, value);
@@ -312,6 +316,11 @@ async function updateMeasurementMetadata(measurement) {
     if (measurement.tags) {
         for (const tag of measurement.tags) {
             await metadataServiceClient.postTag(measurement.id, tag);
+        }
+    }
+    if (additionalProperties) {
+        for (const [key, value] of Object.entries(additionalProperties)) {
+            await metadataServiceClient.postProperty(measurement.id, key, value);
         }
     }
 }
