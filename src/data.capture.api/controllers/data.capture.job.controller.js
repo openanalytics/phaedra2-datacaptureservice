@@ -33,7 +33,7 @@ module.exports = {
         try {
             const captureConfig = req.body;
             const sourcePath = decodeURIComponent((req.query.sourcePath || "").replace(/\+/g, " ")).trim();
-            const job = await dcService.submitCaptureJob(sourcePath, captureConfig);
+            const job = await dcService.submitCaptureJob({ sourcePath, captureConfig });
             res.send(job);
         } catch (err) {
             next(err);

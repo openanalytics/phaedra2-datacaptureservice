@@ -12,8 +12,8 @@ let dataCaptureConsumer = {
                 if (message.key.toString() === kafkaConfig.EVENT_REQ_CAPTURE_JOB) {
                     try {
                         const captureJob = JSON.parse(message.value.toString());
-                        console.log(`Kafka (topic: ${kafkaConfig.TOPIC_DATACAPTURE}): received ${kafkaConfig.EVENT_REQ_CAPTURE_JOB} message with sourcePath: ${captureJob.sourcePath}`);
-                        await dcService.submitCaptureJob(captureJob.sourcePath, captureJob.captureConfig);
+                        console.log(`Kafka (topic: ${kafkaConfig.TOPIC_DATACAPTURE}): received ${kafkaConfig.EVENT_REQ_CAPTURE_JOB} message, submitting captureJob`);
+                        await dcService.submitCaptureJob(captureJob);
                     } catch (err) {
                         console.log(`Kafka (topic: ${kafkaConfig.TOPIC_DATACAPTURE}): failed to process ${kafkaConfig.EVENT_REQ_CAPTURE_JOB} message`);
                         console.error(err);

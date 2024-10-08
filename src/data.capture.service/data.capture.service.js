@@ -37,8 +37,12 @@ exports.getCaptureJobs = async (fromDate, toDate) => {
     return captureJobs;
 }
 
-exports.submitCaptureJob = async (sourcePath, captureConfig) => {
-    const captureJob = await jobDAO.insertCaptureJob('System', sourcePath, captureConfig);
+exports.submitCaptureJob = async (captureJobRequest) => {
+    if (captureJobRequest.captureConfigId && !captureJobRequest.captureConfig) {
+        // A config ID was provided instead of a config object: load it now.
+        captureJobRequest.captureConfig = await this.getCaptureConfiguration(captureJobRequest.captureConfigId);
+    }
+    const captureJob = await jobDAO.insertCaptureJob('System', captureJobRequest.sourcePath, captureJobRequest.captureConfig);
     this.executeCaptureJob(captureJob);
     return captureJob;
 }
