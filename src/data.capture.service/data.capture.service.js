@@ -47,7 +47,9 @@ exports.submitCaptureJob = async (captureJobRequest) => {
 
     if (captureJobRequest.captureConfigId && !captureJobRequest.captureConfig) {
         // A config ID was provided instead of a config object: load it now.
-        captureJobRequest.captureConfig = await this.getCaptureConfiguration(captureJobRequest.captureConfigId);
+        const configFile = await this.getCaptureConfiguration(captureJobRequest.captureConfigId);
+        if (!configFile) throw `Capture config with ID ${captureJobRequest.captureConfigId} not found`;
+        captureJobRequest.captureConfig = JSON.parse(configFile.value);
     }
     const captureJob = await jobDAO.insertCaptureJob('System', captureJobRequest.sourcePath, captureJobRequest.captureConfig);
     if (captureJobRequest.properties) {
@@ -87,7 +89,7 @@ exports.processScriptExecutionUpdate = async (update) => {
         return;
     }
 
-    console.log(`Script ${update.inputId} finished`);
+    console.log(`Script ${update.inputId} of job ${activeJob.job.id} finished`);
     completeCurrentStep(activeJob, update.output);
 }
 
@@ -189,8 +191,13 @@ async function executeCaptureJob(captureJob) {
 async function completeCurrentStep(activeJob, stepOutput) {
     if (activeJob.status == ActiveJobStatus.IdentifyingMeasurements) {
         // Note: assuming here that the script output was not stringified
-        activeJob.measurements = stepOutput;
 
+        if (!stepOutput || !Array.isArray(stepOutput)) {
+            handleJobError(activeJob, `Step "identifyMeasurements" did not return any measurements`);
+            return;
+        }
+
+        activeJob.measurements = stepOutput;
         for (const meas of activeJob.measurements) {
             await measurementServiceClient.postMeasurement(meas);
         }
@@ -274,6 +281,7 @@ async function invokeCurrentStep(activeJob) {
  **********************/
  
 async function handleJobStarted(activeJob) {
+    activeJobs.push(activeJob);
     await logJobStatusChange(activeJob.job, 'Running');
 }
 async function handleJobCancelled(activeJob) {
@@ -301,7 +309,7 @@ async function deleteJobData(activeJob) {
 }
 
 async function logJobStatusChange(job, newStatus, message) {
-    console.log(`Capture job ${job.id} status changed from ${job.statusCode} to ${newStatus} (msg: ${message})`);
+    console.log(`Capture job ${job.id} status changed from ${job.statusCode} to ${newStatus} (${message || ""})`);
     if (newStatus != job.statusCode) {
         const eventCode = (newStatus == "Error") ? "Error" : "Info";
         await logJobEvent(job.id, eventCode, `Status changed to ${newStatus}`);
