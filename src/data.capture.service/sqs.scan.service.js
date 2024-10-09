@@ -43,8 +43,12 @@ async function pollMessages() {
 }
 
 function run() {
-    if (queueURL) setInterval(pollMessages, pollInterval * 1000);
-    else console.log("SQS Scanning Service is NOT started: no SQS_QUEUE_URL configured");
+    if (queueURL) {
+        setInterval(pollMessages, pollInterval * 1000);
+        console.log(`SQS Scanning Service started: polling every ${pollInterval} sec.`);
+    } else {
+        console.log("SQS Scanning Service is NOT started: no SQS_QUEUE_URL configured");
+    }
 }
 
 module.exports = { run };
