@@ -59,7 +59,7 @@ const getCaptureJobs = async (fromDate, toDate) => {
  * @returns The newly created CaptureJob.
  */
 const insertCaptureJob = async (owner, sourcePath, captureConfig) => {
-    console.log(`Creating new CaptureJob for user ${owner} on ${sourcePath}`)
+    // console.log(`Creating new CaptureJob for user ${owner} on ${sourcePath}`)
     const record = await db.queryOne('insert into datacapture.capture_job (create_date, created_by, source_path, capture_config, status_code)'
             + ' values ($1, $2, $3, $4, $5) returning *',
             [ new Date(), owner, sourcePath, captureConfig, 'Submitted' ]);
@@ -74,7 +74,7 @@ const insertCaptureJob = async (owner, sourcePath, captureConfig) => {
  * @param {string} message An optional status message string to add.
  */
 const updateCaptureJob = async (jobId, status, message) => {
-    console.log(`Updating CaptureJob ${jobId} with status ${status} (${message || ''})`)
+    // console.log(`Updating CaptureJob ${jobId} with status ${status} (${message || ''})`)
     await db.queryOne('update datacapture.capture_job set status_code = $1, status_message = $2 where id = $3', [ status, message, jobId ]);
 }
 
@@ -97,7 +97,7 @@ const getCaptureJobEvents = async (jobId) => {
  * @param {string} eventDetails Optional details for the event, as a string.
  */
 const insertCaptureJobEvent = async (jobId, eventType, eventDetails) => {
-    console.log(`Adding CaptureJobEvent for job ${jobId}: ${eventType}: ${eventDetails}`)
+    // console.log(`Adding CaptureJobEvent for job ${jobId}: ${eventType}: ${eventDetails}`)
     await db.queryOne('insert into datacapture.capture_job_event (job_id, event_date, event_type, event_details)'
             + ' values ($1, $2, $3, $4)', [ jobId, new Date(), eventType, eventDetails ])
 }

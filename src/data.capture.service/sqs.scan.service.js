@@ -13,8 +13,6 @@ const pollInterval = parseInt(process.env.SQS_POLL_INTERVAL || "60");
 
 async function pollMessages() {
     try {
-        console.log(`Polling SQS queue: ${queueURL}`);
-
         // Attempt to receive a packet of messages
         const receiveRequest = new ReceiveMessageCommand({
             QueueUrl: queueURL,
@@ -45,7 +43,7 @@ async function pollMessages() {
 function run() {
     if (queueURL) {
         setInterval(pollMessages, pollInterval * 1000);
-        console.log(`SQS Scanning Service started: polling every ${pollInterval} sec.`);
+        console.log(`SQS Scanning Service started: polling "${queueURL}" every ${pollInterval} sec.`);
     } else {
         console.log("SQS Scanning Service is NOT started: no SQS_QUEUE_URL configured");
     }
