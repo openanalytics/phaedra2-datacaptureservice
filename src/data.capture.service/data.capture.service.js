@@ -71,7 +71,7 @@ exports.cancelCaptureJob = async (captureJobId) => {
 }
 
 exports.processScriptExecutionUpdate = async (update) => {
-    // Note: should only be invoked by the kafka scriptengine.consumer
+    // Note: should only be invoked by the kafka consumer
 
     const activeJob = activeJobs.find(job => job.activeScriptIds.includes(update.inputId));
     if (!activeJob) {
@@ -162,7 +162,7 @@ exports.deleteCaptureScript = async (id, accessToken) => {
  ******************/
 
 async function executeCaptureJob(captureJob) {
-    console.log(`Executing capture job (ID: ${captureJob.id}) on sourcePath: ${captureJob.sourcePath}`);
+    console.log(`Capture job ${captureJob.id} started on on sourcePath: ${captureJob.sourcePath}`);
 
     const activeJob = {
         status: ActiveJobStatus.IdentifyingMeasurements,

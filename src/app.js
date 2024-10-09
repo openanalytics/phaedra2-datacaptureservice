@@ -22,11 +22,8 @@ app.listen(port, function () {
     console.log('Data Capture server started on port ' + port);
 });
 
-const dataCaptureConsumer = require('./data.capture.kafka/data.capture.consumer');
-dataCaptureConsumer.run().catch(console.error);
-
-const scriptEngineConsumer = require('./data.capture.kafka/scriptengine.consumer');
-scriptEngineConsumer.run().catch(console.error);
+const kafkaConsumer = require('./data.capture.kafka/consumer');
+kafkaConsumer.run().catch(console.error);
 
 const sqsScanner = require('./data.capture.service/sqs.scan.service');
 sqsScanner.run();
