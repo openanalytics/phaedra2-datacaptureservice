@@ -6,9 +6,13 @@ const consumer = kafkaConfig.makeConsumer({ groupId: kafkaConfig.GROUP_ID });
 let dataCaptureConsumer = {
     run: async () => {
         await consumer.connect();
-
         await consumer.subscribe({ topics: [ kafkaConfig.TOPIC_DATACAPTURE, kafkaConfig.TOPIC_SCRIPTENGINE ] });
 
+        dcService.registerActiveJobsCallback((active, max) => {
+            if (active >= max) consumer.pause([{ topic: config.TOPIC_DATACAPTURE }]);
+            else consumer.resume([{ topic: config.TOPIC_DATACAPTURE }]);
+        });
+        
         await consumer.run({
             eachMessage: async ({topic, partition, message}) => {
                 const msgKey = message.key.toString();

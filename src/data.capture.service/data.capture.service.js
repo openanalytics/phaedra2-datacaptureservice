@@ -15,6 +15,7 @@ const scriptEngineProducer = require('../data.capture.kafka/scriptengine.produce
 const dataCaptureProducer = require('../data.capture.kafka/data.capture.producer');
 
 const maxActiveJobs = parseInt(process.env.MAX_ACTIVE_JOBS || 10);
+const activeJobsCallbacks = [];
 const activeJobs = [];
 
 const ActiveJobStatus = {
@@ -280,22 +281,41 @@ async function invokeCurrentStep(activeJob) {
  * Job State Handling *
  **********************/
  
+exports.registerActiveJobsCallback = (callback) => {
+    activeJobsCallbacks.push(callback);
+}
+
 async function handleJobStarted(activeJob) {
     activeJobs.push(activeJob);
+    notifyActiveJobsCallbacks();
     await logJobStatusChange(activeJob.job, 'Running');
 }
 async function handleJobCancelled(activeJob) {
     activeJobs.splice(activeJobs.indexOf(activeJob), 1);
+    notifyActiveJobsCallbacks();
     await deleteJobData(activeJob);
 }
 async function handleJobError(activeJob, error) {
     activeJobs.splice(activeJobs.indexOf(activeJob), 1);
+    notifyActiveJobsCallbacks();
     await logJobStatusChange(activeJob.job, 'Error', error.toString());
     await deleteJobData(activeJob);
 }
 async function handleJobCompleted(activeJob) {
     await logJobStatusChange(activeJob.job, 'Completed');
     activeJobs.splice(activeJobs.indexOf(activeJob), 1);
+    notifyActiveJobsCallbacks();
+}
+
+async function notifyActiveJobsCallbacks() {
+    for (const cb of activeJobsCallbacks) {
+        try {
+            cb(activeJobs.length, maxActiveJobs);
+        } catch (err) {
+            console.log(`Error while processing activeJobs callback`);
+            console.error(err);
+        }
+    }
 }
 
 async function deleteJobData(activeJob) {
