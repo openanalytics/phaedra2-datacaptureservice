@@ -9,8 +9,8 @@ let dataCaptureConsumer = {
         await consumer.subscribe({ topics: [ kafkaConfig.TOPIC_DATACAPTURE, kafkaConfig.TOPIC_SCRIPTENGINE ] });
 
         dcService.registerActiveJobsCallback((active, max) => {
-            if (active >= max) consumer.pause([{ topic: config.TOPIC_DATACAPTURE }]);
-            else consumer.resume([{ topic: config.TOPIC_DATACAPTURE }]);
+            if (active >= max) consumer.pause([{ topic: kafkaConfig.TOPIC_DATACAPTURE }]);
+            else if (consumer.paused().length > 0) consumer.resume([{ topic: kafkaConfig.TOPIC_DATACAPTURE }]);
         });
         
         await consumer.run({
@@ -20,10 +20,10 @@ let dataCaptureConsumer = {
                 if (topic == kafkaConfig.TOPIC_DATACAPTURE && msgKey == kafkaConfig.EVENT_REQ_CAPTURE_JOB) {
                     try {
                         const captureJob = JSON.parse(message.value.toString());
-                        console.log(`Kafka (topic: ${kafkaConfig.TOPIC_DATACAPTURE}): received ${kafkaConfig.EVENT_REQ_CAPTURE_JOB} message, submitting capture job`);
+                        console.log(`Kafka topic ${kafkaConfig.TOPIC_DATACAPTURE}: received ${kafkaConfig.EVENT_REQ_CAPTURE_JOB}, submitting capture job`);
                         await dcService.submitCaptureJob(captureJob);
                     } catch (err) {
-                        console.log(`Kafka (topic: ${kafkaConfig.TOPIC_DATACAPTURE}): failed to process ${kafkaConfig.EVENT_REQ_CAPTURE_JOB} message`);
+                        console.log(`Kafka topic ${kafkaConfig.TOPIC_DATACAPTURE}: failed to process ${kafkaConfig.EVENT_REQ_CAPTURE_JOB} message`);
                         console.error(err);
                     }
                 }

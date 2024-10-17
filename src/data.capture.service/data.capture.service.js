@@ -308,6 +308,7 @@ async function handleJobCompleted(activeJob) {
 }
 
 async function notifyActiveJobsCallbacks() {
+    // console.log(`Notifying activeJobs callbacks: ${activeJobs.length}/${maxActiveJobs} active jobs`);
     for (const cb of activeJobsCallbacks) {
         try {
             cb(activeJobs.length, maxActiveJobs);
