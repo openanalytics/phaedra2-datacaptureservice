@@ -2,10 +2,9 @@ const { Kafka } = require('kafkajs');
 
 // Brokers
 const BROKERS = [ process.env.KAFKA_SERVERS ];
-const CLIENT_ID = "datacapture-service";
 
 // Groups
-exports.GROUP_ID = CLIENT_ID
+exports.GROUP_ID = process.env.KAFKA_GROUP_ID || "datacapture-service";
 
 // Topics
 exports.TOPIC_DATACAPTURE = "datacapture"
@@ -23,7 +22,6 @@ exports.EVENT_SCRIPT_EXECUTION_UPDATE = "scriptExecutionUpdate"
 
 exports.makeConsumer = (opts) => {
     let kafka = new Kafka({
-        clientId: CLIENT_ID,
         brokers: BROKERS
     });
     return kafka.consumer(opts);
@@ -31,7 +29,6 @@ exports.makeConsumer = (opts) => {
 
 exports.makeProducer = (opts) => {
     let kafka = new Kafka({
-        clientId: CLIENT_ID,
         brokers: BROKERS
     });
     return kafka.producer(opts);
