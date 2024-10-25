@@ -264,7 +264,7 @@ async function invokeCurrentStep(activeJob) {
 
     if (stepConfig) {
         const currentMeas = activeJob.measurements[activeJob.currentMeasurementIndex];
-        await logCaptureJobEvent(activeJob.job.id, "Info", `Measurement ${currentMeas.name}: invoking ${stepConfig.scriptId}`);
+        await logJobEvent(activeJob.job.id, "Info", `Measurement ${currentMeas.name}: invoking ${stepConfig.scriptId}`);
 
         const requestID = await invokeScript(stepConfig.scriptId, {
             measurement: currentMeas,
