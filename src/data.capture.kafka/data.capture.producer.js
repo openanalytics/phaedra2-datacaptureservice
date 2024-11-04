@@ -15,6 +15,17 @@ let dataCaptureProducer = {
             }]
         });
         await producer.disconnect();
+    },
+    submitCaptureJob: async (jobRequest) => {
+        await producer.connect();
+        await producer.send({
+            topic: kafkaConfig.TOPIC_DATACAPTURE,
+            messages: [{
+                key: kafkaConfig.EVENT_REQ_CAPTURE_JOB,
+                value: JSON.stringify(jobRequest)
+            }]
+        });
+        await producer.disconnect();
     }
 }
 
