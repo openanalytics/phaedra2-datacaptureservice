@@ -14,7 +14,7 @@ module.exports = {
             await producer.send({
                 topic: kafkaConfig.TOPIC_SCRIPTENGINE,
                 messages: [{
-                    key: kafkaConfig.EVENT_REQUEST_SCRIPT_EXECUTION,
+                    key: `${kafkaConfig.EVENT_REQUEST_SCRIPT_EXECUTION}-${request.id}`,
                     value: JSON.stringify(request)
                 }]
             })
