@@ -66,11 +66,13 @@ exports.submitCaptureJob = async (captureJobRequest) => {
 
 exports.cancelCaptureJob = async (captureJobId) => {
     const captureJob = await jobDAO.getCaptureJob(captureJobId);
-
     if (captureJob?.statusCode === 'Running' || captureJob?.statusCode === 'Submitted') {
         await logJobEvent(captureJobId, 'Warning', `Capture job cancelled by request`);
         return await logJobStatusChange(captureJob, 'Cancelled');
     }
+
+    const activeJob = activeJobs.find(j => j.job.id == captureJobId);
+    if (activeJob) handleJobCancelled(activeJob);
 }
 
 exports.processScriptExecutionUpdate = async (update) => {
@@ -246,10 +248,7 @@ async function completeCurrentStep(activeJob, stepOutput) {
 async function invokeCurrentStep(activeJob) {
     // Get a fresh record from the DB to check for cancellation status
     let currentJob = await jobDAO.getCaptureJob(activeJob.job.id);
-    if (currentJob.statusCode === 'Cancelled') {
-        handleJobCancelled(activeJob);
-        return;
-    }
+    if (currentJob.statusCode === 'Cancelled') return;
 
     // Load the step's corresponding config
     let stepConfig = null;
@@ -291,19 +290,22 @@ async function handleJobStarted(activeJob) {
     await logJobStatusChange(activeJob.job, 'Running');
 }
 async function handleJobCancelled(activeJob) {
-    activeJobs.splice(activeJobs.indexOf(activeJob), 1);
+    const jobIndex = activeJobs.indexOf(activeJob);
+    if (jobIndex >= 0) activeJobs.splice(jobIndex, 1);
     notifyActiveJobsCallbacks();
     await deleteJobData(activeJob);
 }
 async function handleJobError(activeJob, error) {
-    activeJobs.splice(activeJobs.indexOf(activeJob), 1);
+    const jobIndex = activeJobs.indexOf(activeJob);
+    if (jobIndex >= 0) activeJobs.splice(jobIndex, 1);
     notifyActiveJobsCallbacks();
     await logJobStatusChange(activeJob.job, 'Error', error.toString());
     await deleteJobData(activeJob);
 }
 async function handleJobCompleted(activeJob) {
     await logJobStatusChange(activeJob.job, 'Completed');
-    activeJobs.splice(activeJobs.indexOf(activeJob), 1);
+    const jobIndex = activeJobs.indexOf(activeJob);
+    if (jobIndex >= 0) activeJobs.splice(jobIndex, 1);
     notifyActiveJobsCallbacks();
 }
 
