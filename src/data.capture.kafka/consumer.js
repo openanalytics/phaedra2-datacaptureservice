@@ -9,8 +9,9 @@ let dataCaptureConsumer = {
         await consumer.subscribe({ topics: [ kafkaConfig.TOPIC_DATACAPTURE, kafkaConfig.TOPIC_SCRIPTENGINE ] });
 
         dcService.registerActiveJobsCallback((active, max) => {
-            if (active >= max) consumer.pause([{ topic: kafkaConfig.TOPIC_DATACAPTURE }]);
-            else if (consumer.paused().length > 0) consumer.resume([{ topic: kafkaConfig.TOPIC_DATACAPTURE }]);
+            const isPaused = (consumer.paused() || []).length > 0;
+            if (active >= max && !isPaused) consumer.pause([{ topic: kafkaConfig.TOPIC_DATACAPTURE }]);
+            if (active < max && isPaused) consumer.resume([{ topic: kafkaConfig.TOPIC_DATACAPTURE }]);
         });
         
         await consumer.run({
