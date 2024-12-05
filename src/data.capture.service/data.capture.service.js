@@ -68,11 +68,13 @@ exports.cancelCaptureJob = async (captureJobId) => {
     const captureJob = await jobDAO.getCaptureJob(captureJobId);
     if (captureJob?.statusCode === 'Running' || captureJob?.statusCode === 'Submitted') {
         await logJobEvent(captureJobId, 'Warning', `Capture job cancelled by request`);
-        return await logJobStatusChange(captureJob, 'Cancelled');
+        await logJobStatusChange(captureJob, 'Cancelled');
     }
 
     const activeJob = activeJobs.find(j => j.job.id == captureJobId);
     if (activeJob) handleJobCancelled(activeJob);
+
+    return captureJob;
 }
 
 exports.processScriptExecutionUpdate = async (update) => {
