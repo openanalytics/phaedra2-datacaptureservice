@@ -220,6 +220,7 @@ async function completeCurrentStep(activeJob, stepOutput) {
             ...activeJob.job,
             measurementId: completedMeasurement.id,
             barcode: completedMeasurement.barcode,
+            measurementProperties: completedMeasurement.properties
         });
 
         // Then proceed to the next measurement, or end the job if all measurements are done.
