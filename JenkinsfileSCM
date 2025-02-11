@@ -12,7 +12,22 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '3'))
     }
 
+    parameters {
+        string(name: 'BUILD_TYPE', defaultValue: 'default')
+    }
+
     stages {
+        stage('Initialize') {
+		    when {
+			    branch 'master'
+                expression { params.BUILD_TYPE != 'product_release' }
+            }
+            steps {
+                script { currentBuild.result = 'ABORTED' }
+                error 'Build of the master branch can only be invoked as part of the product_release'
+            }
+	    }
+
         stage('Prepare environment') {
             steps {
                 script {
