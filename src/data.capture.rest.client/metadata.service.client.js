@@ -70,8 +70,8 @@ const serviceAPI = {
 
         const url = makeURL('/graphql');
         const body = JSON.stringify({
-            objectIds: objectIds,
-            objectClass: objectClass
+            query,
+            variables
         })
         const headers = await buildRequestHeaders();
         const response = await axios.post(url, body, { headers: headers });
