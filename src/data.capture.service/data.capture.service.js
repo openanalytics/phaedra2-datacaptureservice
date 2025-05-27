@@ -1,20 +1,20 @@
 /*
  * Phaedra II
- * 
+ *
  * Copyright (C) 2016-2025 Open Analytics
- * 
+ *
  * ===========================================================================
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the Apache License as published by
  * The Apache Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * Apache License for more details.
- * 
+ *
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
@@ -156,6 +156,11 @@ exports.deleteCaptureConfiguration = async (id, accessToken) => {
  *******************************/
 
 exports.getAllCaptureScripts = async () => {
+    const captureScripts = await fileStoreService.getScriptStore().getAllFiles();
+    const objectIds = captureScripts.map(cScript => cScript.id);
+    const metadata = metadataServiceClient.getMetadata(objectIds, "CAPTURE_CONFIG");
+    console.log(`Retrieved metadata for ${objectIds.length} capture scripts`);
+    console.log(`Metadata: ${JSON.stringify(metadata)}`);
     return await fileStoreService.getScriptStore().getAllFiles();
 }
 
@@ -302,7 +307,7 @@ async function invokeCurrentStep(activeJob) {
 /**********************
  * Job State Handling *
  **********************/
- 
+
 exports.registerActiveJobsCallback = (callback) => {
     activeJobsCallbacks.push(callback);
 }
@@ -403,7 +408,7 @@ const invokeScript = async (scriptName, scriptContext) => {
     const scriptFile = await fileStoreService.getScriptStore().loadFileByName(scriptName);
     if (!scriptFile) throw `No script found with name "${scriptName}"`;
     console.log(`Executing script "${scriptFile.name}", id ${scriptFile.id}, version ${scriptFile.version}`);
-    
+
     const request = {
         id: crypto.randomUUID(),
         language: "JS",
