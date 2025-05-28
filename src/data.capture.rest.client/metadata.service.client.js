@@ -56,8 +56,14 @@ const serviceAPI = {
         }
         const headers = await buildRequestHeaders();
         const response = await axios.get(url, { headers: headers, params: params });
-        console.log(response.data);
-        return response.data;
+
+        const metadata = new Map();
+        response.data.forEach(item => {
+            metadata.set(item.objectId, item);
+        });
+
+
+        return metadata;
     }
 
 }

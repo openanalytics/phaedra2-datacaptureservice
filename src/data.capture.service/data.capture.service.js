@@ -159,10 +159,38 @@ exports.getAllCaptureScripts = async () => {
     console.log(`Retrieving metadata for all capture scripts`);
     const captureScripts = await fileStoreService.getScriptStore().getAllFiles();
     const objectIds = captureScripts.map(cScript => cScript.id);
-    const metadata = metadataServiceClient.getMetadata(objectIds, "CAPTURE_SCRIPT");
+    const metadata =await metadataServiceClient.getMetadata(objectIds, "CAPTURE_SCRIPT");
     console.log(`Retrieved metadata for ${objectIds.length} capture scripts`);
     console.log(`Metadata: ${JSON.stringify(metadata)}`);
-    return await fileStoreService.getScriptStore().getAllFiles();
+
+    const enrichedScripts = captureScripts.map(script => {
+        const scriptMetadata = metadata.get(script.id);
+        if (scriptMetadata) {
+            // Add tags to the script object
+            if (scriptMetadata.tags && scriptMetadata.tags.length > 0) {
+                script["tags"] = scriptMetadata.tags.map(tag => tag.tag);
+            } else {
+                script["tags"] = [];
+            }
+
+            // Add properties to the script object
+            if (scriptMetadata.properties && scriptMetadata.properties.length > 0) {
+                script["properties"] = scriptMetadata.properties.map(prop => ({
+                    propertyName: prop.propertyName,
+                    propertyValue: prop.propertyValue
+                }));
+            } else {
+                script["properties"] = [];
+            }
+        } else {
+            // No metadata found for this script
+            script["tags"] = [];
+            script["properties"] = [];
+        }
+        return script;
+    })
+
+    return enrichedScripts;
 }
 
 exports.getCaptureScript = async (id) => {
