@@ -123,11 +123,72 @@ exports.processScriptExecutionUpdate = async (update) => {
  *******************************/
 
 exports.getAllCaptureConfigurations = async () => {
-    return await fileStoreService.getConfigStore().getAllFiles();
+    const captureConfigs = await fileStoreService.getConfigStore().getAllFiles();
+    const objectIds = captureConfigs.map(cConfig => cConfig.id);
+    const metadata = await metadataServiceClient.getMetadata(objectIds, "CAPTURE_CONFIG");
+
+    const enrichedConfigs = captureConfigs.map(config => {
+        const configMetadata = metadata[config.id];
+        if (configMetadata) {
+            // Add tags to the script object
+            if (configMetadata.tags && configMetadata.tags.length > 0) {
+                config["tags"] = configMetadata.tags.map(tag => tag.tag);
+            } else {
+                config["tags"] = [];
+            }
+
+            // Add properties to the script object
+            if (configMetadata.properties && configMetadata.properties.length > 0) {
+                config["properties"] = configMetadata.properties.map(prop => ({
+                    propertyName: prop.propertyName,
+                    propertyValue: prop.propertyValue
+                }));
+            } else {
+                config["properties"] = [];
+            }
+        } else {
+            // No metadata found for this script
+            config["tags"] = [];
+            config["properties"] = [];
+        }
+        return config;
+    })
+
+    return enrichedConfigs;
 }
 
 exports.getCaptureConfiguration = async (id) => {
-    return await fileStoreService.getConfigStore().loadFile(id);
+    const captureConfig = await fileStoreService.getConfigStore().loadFile(id);
+    const metadata = await metadataServiceClient.getMetadata([id], "CAPTURE_CONFIG");
+
+    const enrichedConfigs = [captureConfig].map(config => {
+        const configMetadata = metadata[config.id];
+        if (configMetadata) {
+            // Add tags to the script object
+            if (configMetadata.tags && configMetadata.tags.length > 0) {
+                config["tags"] = configMetadata.tags.map(tag => tag.tag);
+            } else {
+                config["tags"] = [];
+            }
+
+            // Add properties to the script object
+            if (configMetadata.properties && configMetadata.properties.length > 0) {
+                config["properties"] = configMetadata.properties.map(prop => ({
+                    propertyName: prop.propertyName,
+                    propertyValue: prop.propertyValue
+                }));
+            } else {
+                config["properties"] = [];
+            }
+        } else {
+            // No metadata found for this script
+            config["tags"] = [];
+            config["properties"] = [];
+        }
+        return config;
+    })
+
+    return enrichedConfigs[0];
 }
 
 exports.addNewCaptureConfiguration = async (config, accessToken) => {
@@ -156,12 +217,9 @@ exports.deleteCaptureConfiguration = async (id, accessToken) => {
  *******************************/
 
 exports.getAllCaptureScripts = async () => {
-    console.log(`Retrieving metadata for all capture scripts`);
     const captureScripts = await fileStoreService.getScriptStore().getAllFiles();
     const objectIds = captureScripts.map(cScript => cScript.id);
     const metadata = await metadataServiceClient.getMetadata(objectIds, "CAPTURE_SCRIPT");
-    console.log(`Retrieved metadata for ${objectIds.length} capture scripts`);
-    console.log(`Metadata: ${JSON.stringify(metadata)}`);
 
     const enrichedScripts = captureScripts.map(script => {
         const scriptMetadata = metadata[script.id];
@@ -194,7 +252,37 @@ exports.getAllCaptureScripts = async () => {
 }
 
 exports.getCaptureScript = async (id) => {
-    return await fileStoreService.getScriptStore().loadFile(id);
+    const captureScript = await fileStoreService.getScriptStore().loadFile(id);
+    const metadata = await metadataServiceClient.getMetadata([id], "CAPTURE_SCRIPT");
+
+    const enrichedScripts = [captureScript].map(script => {
+        const scriptMetadata = metadata[script.id];
+        if (scriptMetadata) {
+            // Add tags to the script object
+            if (scriptMetadata.tags && scriptMetadata.tags.length > 0) {
+                script["tags"] = scriptMetadata.tags.map(tag => tag.tag);
+            } else {
+                script["tags"] = [];
+            }
+
+            // Add properties to the script object
+            if (scriptMetadata.properties && scriptMetadata.properties.length > 0) {
+                script["properties"] = scriptMetadata.properties.map(prop => ({
+                    propertyName: prop.propertyName,
+                    propertyValue: prop.propertyValue
+                }));
+            } else {
+                script["properties"] = [];
+            }
+        } else {
+            // No metadata found for this script
+            script["tags"] = [];
+            script["properties"] = [];
+        }
+        return script;
+    })
+
+    return enrichedScripts[0];
 }
 
 exports.addNewCaptureScript = async (script, accessToken) => {
