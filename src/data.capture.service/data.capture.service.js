@@ -167,16 +167,12 @@ exports.getAllCaptureScripts = async () => {
     const objectIds = captureScripts.map(cScript => cScript.id);
     const metadata = await metadataServiceClient.getMetadata(objectIds, "CAPTURE_SCRIPT");
 
-    console.log(`Metadata for scripts: ${JSON.stringify(metadata)}`);
-
     return captureScripts.map(script => enrichObjectWithMetadata(script, metadata[script.id]))
 }
 
 exports.getCaptureScript = async (id) => {
     const captureScript = await fileStoreService.getScriptStore().loadFile(id);
     const metadata = await metadataServiceClient.getMetadata([id], "CAPTURE_SCRIPT");
-
-    console.log(`Metadata for script ${id}: ${JSON.stringify(metadata[id])}`);
 
     return enrichObjectWithMetadata(captureScript, metadata[id]);
 }
