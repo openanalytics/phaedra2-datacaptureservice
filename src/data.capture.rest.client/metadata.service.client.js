@@ -75,7 +75,7 @@ const serviceAPI = {
         })
         const headers = await buildRequestHeaders();
         const response = await axios.post(url, body, { headers: headers });
-        console.log(response.data.data.metadata);
+        console.log(JSON.stringify(response));
         return response.data;
     }
 
