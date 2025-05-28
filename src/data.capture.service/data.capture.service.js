@@ -127,68 +127,14 @@ exports.getAllCaptureConfigurations = async () => {
     const objectIds = captureConfigs.map(cConfig => cConfig.id);
     const metadata = await metadataServiceClient.getMetadata(objectIds, "CAPTURE_CONFIG");
 
-    const enrichedConfigs = captureConfigs.map(config => {
-        const configMetadata = metadata[config.id];
-        if (configMetadata) {
-            // Add tags to the script object
-            if (configMetadata.tags && configMetadata.tags.length > 0) {
-                config["tags"] = configMetadata.tags.map(tag => tag.tag);
-            } else {
-                config["tags"] = [];
-            }
-
-            // Add properties to the script object
-            if (configMetadata.properties && configMetadata.properties.length > 0) {
-                config["properties"] = configMetadata.properties.map(prop => ({
-                    propertyName: prop.propertyName,
-                    propertyValue: prop.propertyValue
-                }));
-            } else {
-                config["properties"] = [];
-            }
-        } else {
-            // No metadata found for this script
-            config["tags"] = [];
-            config["properties"] = [];
-        }
-        return config;
-    })
-
-    return enrichedConfigs;
+    return captureConfigs.map(config => enrichObjectWithMetadata(config, metadata[config.id]))
 }
 
 exports.getCaptureConfiguration = async (id) => {
     const captureConfig = await fileStoreService.getConfigStore().loadFile(id);
     const metadata = await metadataServiceClient.getMetadata([id], "CAPTURE_CONFIG");
 
-    const enrichedConfigs = [captureConfig].map(config => {
-        const configMetadata = metadata[config.id];
-        if (configMetadata) {
-            // Add tags to the script object
-            if (configMetadata.tags && configMetadata.tags.length > 0) {
-                config["tags"] = configMetadata.tags.map(tag => tag.tag);
-            } else {
-                config["tags"] = [];
-            }
-
-            // Add properties to the script object
-            if (configMetadata.properties && configMetadata.properties.length > 0) {
-                config["properties"] = configMetadata.properties.map(prop => ({
-                    propertyName: prop.propertyName,
-                    propertyValue: prop.propertyValue
-                }));
-            } else {
-                config["properties"] = [];
-            }
-        } else {
-            // No metadata found for this script
-            config["tags"] = [];
-            config["properties"] = [];
-        }
-        return config;
-    })
-
-    return enrichedConfigs[0];
+    return enrichObjectWithMetadata(captureConfig, metadata[id]);
 }
 
 exports.addNewCaptureConfiguration = async (config, accessToken) => {
@@ -221,68 +167,14 @@ exports.getAllCaptureScripts = async () => {
     const objectIds = captureScripts.map(cScript => cScript.id);
     const metadata = await metadataServiceClient.getMetadata(objectIds, "CAPTURE_SCRIPT");
 
-    const enrichedScripts = captureScripts.map(script => {
-        const scriptMetadata = metadata[script.id];
-        if (scriptMetadata) {
-            // Add tags to the script object
-            if (scriptMetadata.tags && scriptMetadata.tags.length > 0) {
-                script["tags"] = scriptMetadata.tags.map(tag => tag.tag);
-            } else {
-                script["tags"] = [];
-            }
-
-            // Add properties to the script object
-            if (scriptMetadata.properties && scriptMetadata.properties.length > 0) {
-                script["properties"] = scriptMetadata.properties.map(prop => ({
-                    propertyName: prop.propertyName,
-                    propertyValue: prop.propertyValue
-                }));
-            } else {
-                script["properties"] = [];
-            }
-        } else {
-            // No metadata found for this script
-            script["tags"] = [];
-            script["properties"] = [];
-        }
-        return script;
-    })
-
-    return enrichedScripts;
+    return captureScripts.map(script => enrichObjectWithMetadata(script, metadata[script.id]))
 }
 
 exports.getCaptureScript = async (id) => {
     const captureScript = await fileStoreService.getScriptStore().loadFile(id);
     const metadata = await metadataServiceClient.getMetadata([id], "CAPTURE_SCRIPT");
 
-    const enrichedScripts = [captureScript].map(script => {
-        const scriptMetadata = metadata[script.id];
-        if (scriptMetadata) {
-            // Add tags to the script object
-            if (scriptMetadata.tags && scriptMetadata.tags.length > 0) {
-                script["tags"] = scriptMetadata.tags.map(tag => tag.tag);
-            } else {
-                script["tags"] = [];
-            }
-
-            // Add properties to the script object
-            if (scriptMetadata.properties && scriptMetadata.properties.length > 0) {
-                script["properties"] = scriptMetadata.properties.map(prop => ({
-                    propertyName: prop.propertyName,
-                    propertyValue: prop.propertyValue
-                }));
-            } else {
-                script["properties"] = [];
-            }
-        } else {
-            // No metadata found for this script
-            script["tags"] = [];
-            script["properties"] = [];
-        }
-        return script;
-    })
-
-    return enrichedScripts[0];
+    return enrichObjectWithMetadata(captureScript, metadata[id]);
 }
 
 exports.addNewCaptureScript = async (script, accessToken) => {
@@ -520,6 +412,32 @@ async function updateMeasurementMetadata(measurement, additionalProperties) {
         }
     }
 }
+
+function enrichObjectWithMetadata(object, metadata) {
+    const configMetadata = metadata[object.id];
+
+    // Initialize default empty arrays
+    object["tags"] = [];
+    object["properties"] = [];
+
+    if (configMetadata) {
+        // Add tags to the config object
+        if (configMetadata.tags && configMetadata.tags.length > 0) {
+            object.tags = configMetadata.tags.map(tag => tag.tag);
+        }
+
+        // Add properties to the config object
+        if (configMetadata.properties && configMetadata.properties.length > 0) {
+            object.properties = configMetadata.properties.map(prop => ({
+                propertyName: prop.propertyName,
+                propertyValue: prop.propertyValue
+            }));
+        }
+    }
+
+    return object;
+}
+
 
 const invokeScript = async (scriptName, scriptContext) => {
     const scriptFile = await fileStoreService.getScriptStore().loadFileByName(scriptName);

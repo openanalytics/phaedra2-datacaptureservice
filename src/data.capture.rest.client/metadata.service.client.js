@@ -62,8 +62,6 @@ const serviceAPI = {
             metadata[item.objectId] = item;
         })
 
-        console.log(`Got metadata for ${objectIds.length} ${objectClass} objects: ${JSON.stringify(metadata)}`);
-
         return metadata;
     }
 
