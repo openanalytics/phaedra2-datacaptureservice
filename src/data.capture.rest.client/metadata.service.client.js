@@ -49,32 +49,13 @@ const serviceAPI = {
     },
 
     getMetadata: async (objectIds, objectClass) => {
-        const query = `
-            query metadata($objectIds: [ID], $objectClass: String) {
-                metadata(objectIds: $objectIds, objectClass: $objectClass) {
-                    objectId
-                    properties {
-                      propertyName
-                      propertyValue
-                    }
-                    tags {
-                      tag
-                    }
-                }
-            }
-        `
-        const variables = {
+        const url = makeURL('/metadata');
+        const params = {
             objectIds: objectIds,
             objectClass: objectClass
         }
-
-        const url = makeURL('/graphql');
-        const body = JSON.stringify({
-            query,
-            variables
-        })
         const headers = await buildRequestHeaders();
-        const response = await axios.post(url, body, { headers: headers });
+        const response = await axios.get(url, { headers: headers, params: params });
         console.log(response.data);
         return response.data;
     }
