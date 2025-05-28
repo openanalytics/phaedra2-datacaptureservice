@@ -51,7 +51,7 @@ const serviceAPI = {
     getMetadata: async (objectIds, objectClass) => {
         const url = makeURL('/metadata');
         const params = {
-            objectIds: objectIds,
+            objectId: objectIds,
             objectClass: objectClass
         }
         const headers = await buildRequestHeaders();
