@@ -57,11 +57,12 @@ const serviceAPI = {
         const headers = await buildRequestHeaders();
         const response = await axios.get(url, { headers: headers, params: params });
 
-        const metadata = new Map();
+        const metadata = {};
         response.data.forEach(item => {
-            metadata.set(item.objectId, item);
-        });
+            metadata[item.objectId] = item;
+        })
 
+        console.log(`Got metadata for ${objectIds.length} ${objectClass} objects: ${JSON.stringify(metadata)}`);
 
         return metadata;
     }
