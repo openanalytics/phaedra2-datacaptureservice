@@ -423,12 +423,12 @@ function enrichObjectWithMetadata(object, metadata) {
     if (configMetadata) {
         // Add tags to the config object
         if (configMetadata.tags && configMetadata.tags.length > 0) {
-            object.tags = configMetadata.tags.map(tag => tag.tag);
+            object["tags"] = configMetadata.tags.map(tag => tag.tag);
         }
 
         // Add properties to the config object
         if (configMetadata.properties && configMetadata.properties.length > 0) {
-            object.properties = configMetadata.properties.map(prop => ({
+            object["properties"] = configMetadata.properties.map(prop => ({
                 propertyName: prop.propertyName,
                 propertyValue: prop.propertyValue
             }));
