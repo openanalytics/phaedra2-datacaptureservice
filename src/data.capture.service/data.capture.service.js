@@ -167,12 +167,16 @@ exports.getAllCaptureScripts = async () => {
     const objectIds = captureScripts.map(cScript => cScript.id);
     const metadata = await metadataServiceClient.getMetadata(objectIds, "CAPTURE_SCRIPT");
 
+    console.log(`Metadata for scripts: ${JSON.stringify(metadata)}`);
+
     return captureScripts.map(script => enrichObjectWithMetadata(script, metadata[script.id]))
 }
 
 exports.getCaptureScript = async (id) => {
     const captureScript = await fileStoreService.getScriptStore().loadFile(id);
     const metadata = await metadataServiceClient.getMetadata([id], "CAPTURE_SCRIPT");
+
+    console.log(`Metadata for script ${id}: ${JSON.stringify(metadata[id])}`);
 
     return enrichObjectWithMetadata(captureScript, metadata[id]);
 }
@@ -414,21 +418,19 @@ async function updateMeasurementMetadata(measurement, additionalProperties) {
 }
 
 function enrichObjectWithMetadata(object, metadata) {
-    const configMetadata = metadata[object.id];
-
     // Initialize default empty arrays
     object["tags"] = [];
     object["properties"] = [];
 
-    if (configMetadata) {
+    if (metadata) {
         // Add tags to the config object
-        if (configMetadata.tags && configMetadata.tags.length > 0) {
-            object["tags"] = configMetadata.tags.map(tag => tag.tag);
+        if (metadata.tags && metadata.tags.length > 0) {
+            object["tags"] = metadata.tags.map(tag => tag.tag);
         }
 
         // Add properties to the config object
-        if (configMetadata.properties && configMetadata.properties.length > 0) {
-            object["properties"] = configMetadata.properties.map(prop => ({
+        if (metadata.properties && metadata.properties.length > 0) {
+            object["properties"] = metadata.properties.map(prop => ({
                 propertyName: prop.propertyName,
                 propertyValue: prop.propertyValue
             }));
