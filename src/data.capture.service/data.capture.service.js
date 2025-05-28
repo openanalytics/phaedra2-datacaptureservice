@@ -156,6 +156,7 @@ exports.deleteCaptureConfiguration = async (id, accessToken) => {
  *******************************/
 
 exports.getAllCaptureScripts = async () => {
+    console.log(`Retrieving metadata for all capture scripts`);
     const captureScripts = await fileStoreService.getScriptStore().getAllFiles();
     const objectIds = captureScripts.map(cScript => cScript.id);
     const metadata = metadataServiceClient.getMetadata(objectIds, "CAPTURE_CONFIG");
