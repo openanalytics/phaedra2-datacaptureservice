@@ -164,7 +164,7 @@ exports.getAllCaptureScripts = async () => {
     console.log(`Metadata: ${JSON.stringify(metadata)}`);
 
     const enrichedScripts = captureScripts.map(script => {
-        const scriptMetadata = metadata.get(script.id);
+        const scriptMetadata = metadata[script.id];
         if (scriptMetadata) {
             // Add tags to the script object
             if (scriptMetadata.tags && scriptMetadata.tags.length > 0) {
