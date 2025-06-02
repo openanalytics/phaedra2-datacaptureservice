@@ -1,20 +1,20 @@
 /*
  * Phaedra II
- * 
+ *
  * Copyright (C) 2016-2025 Open Analytics
- * 
+ *
  * ===========================================================================
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the Apache License as published by
  * The Apache Software Foundation, either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * Apache License for more details.
- * 
+ *
  * You should have received a copy of the Apache License
  * along with this program.  If not, see <http://www.apache.org/licenses/>
  */
@@ -123,11 +123,18 @@ exports.processScriptExecutionUpdate = async (update) => {
  *******************************/
 
 exports.getAllCaptureConfigurations = async () => {
-    return await fileStoreService.getConfigStore().getAllFiles();
+    const captureConfigs = await fileStoreService.getConfigStore().getAllFiles();
+    const objectIds = captureConfigs.map(cConfig => cConfig.id);
+    const metadata = await metadataServiceClient.getMetadata(objectIds, "CAPTURE_CONFIG");
+
+    return captureConfigs.map(config => enrichObjectWithMetadata(config, metadata[config.id]))
 }
 
 exports.getCaptureConfiguration = async (id) => {
-    return await fileStoreService.getConfigStore().loadFile(id);
+    const captureConfig = await fileStoreService.getConfigStore().loadFile(id);
+    const metadata = await metadataServiceClient.getMetadata([id], "CAPTURE_CONFIG");
+
+    return enrichObjectWithMetadata(captureConfig, metadata[id]);
 }
 
 exports.addNewCaptureConfiguration = async (config, accessToken) => {
@@ -156,11 +163,18 @@ exports.deleteCaptureConfiguration = async (id, accessToken) => {
  *******************************/
 
 exports.getAllCaptureScripts = async () => {
-    return await fileStoreService.getScriptStore().getAllFiles();
+    const captureScripts = await fileStoreService.getScriptStore().getAllFiles();
+    const objectIds = captureScripts.map(cScript => cScript.id);
+    const metadata = await metadataServiceClient.getMetadata(objectIds, "CAPTURE_SCRIPT");
+
+    return captureScripts.map(script => enrichObjectWithMetadata(script, metadata[script.id]))
 }
 
 exports.getCaptureScript = async (id) => {
-    return await fileStoreService.getScriptStore().loadFile(id);
+    const captureScript = await fileStoreService.getScriptStore().loadFile(id);
+    const metadata = await metadataServiceClient.getMetadata([id], "CAPTURE_SCRIPT");
+
+    return enrichObjectWithMetadata(captureScript, metadata[id]);
 }
 
 exports.addNewCaptureScript = async (script, accessToken) => {
@@ -302,7 +316,7 @@ async function invokeCurrentStep(activeJob) {
 /**********************
  * Job State Handling *
  **********************/
- 
+
 exports.registerActiveJobsCallback = (callback) => {
     activeJobsCallbacks.push(callback);
 }
@@ -399,11 +413,35 @@ async function updateMeasurementMetadata(measurement, additionalProperties) {
     }
 }
 
+function enrichObjectWithMetadata(object, metadata) {
+    // Initialize default empty arrays
+    object["tags"] = [];
+    object["properties"] = [];
+
+    if (metadata) {
+        // Add tags to the config object
+        if (metadata.tags && metadata.tags.length > 0) {
+            object["tags"] = metadata.tags.map(tag => tag.tag);
+        }
+
+        // Add properties to the config object
+        if (metadata.properties && metadata.properties.length > 0) {
+            object["properties"] = metadata.properties.map(prop => ({
+                propertyName: prop.propertyName,
+                propertyValue: prop.propertyValue
+            }));
+        }
+    }
+
+    return object;
+}
+
+
 const invokeScript = async (scriptName, scriptContext) => {
     const scriptFile = await fileStoreService.getScriptStore().loadFileByName(scriptName);
     if (!scriptFile) throw `No script found with name "${scriptName}"`;
     console.log(`Executing script "${scriptFile.name}", id ${scriptFile.id}, version ${scriptFile.version}`);
-    
+
     const request = {
         id: crypto.randomUUID(),
         language: "JS",
