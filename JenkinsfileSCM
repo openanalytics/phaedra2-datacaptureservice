@@ -40,6 +40,9 @@ pipeline {
                     def versionMatch = (env.VERSION =~ /\d+\.\d+\.\d+(.*)/)
                     env.REPO_SUFFIX = (versionMatch.matches() ? versionMatch.group(1) : "").toLowerCase()
                     env.TAG = "${env.VERSION}"
+                    def shouldPublish = (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'develop')
+                    echo shouldPublish
+                    env.PUSH_ARG = shouldPublish ? "" : "--no-push"
                 }
             }
         }
@@ -55,7 +58,7 @@ pipeline {
                             --cache-repo ${env.REGISTRY}/${env.PHA2_SHARED_CACHE} \
                             --destination ${env.REGISTRY}/${env.REPO}${env.REPO_SUFFIX}:${env.TAG} \
                             --destination ${env.REGISTRY}/${env.REPO}${env.REPO_SUFFIX}:latest \
-                            --dockerfile Dockerfile.app
+                            ${env.PUSH_ARG} --dockerfile Dockerfile.app
                     """
                 }
             }
@@ -72,7 +75,7 @@ pipeline {
                             --cache-repo ${env.REGISTRY}/${env.PHA2_SHARED_CACHE}.liquibase \
                             --destination ${env.REGISTRY}/${env.REPO}.liquibase${env.REPO_SUFFIX}:${env.TAG} \
                             --destination ${env.REGISTRY}/${env.REPO}.liquibase${env.REPO_SUFFIX}:latest \
-                            --dockerfile Dockerfile.db
+                            ${env.PUSH_ARG} --dockerfile Dockerfile.db
                     """
                 }
             }
