@@ -41,7 +41,7 @@ pipeline {
                     env.REPO_SUFFIX = (versionMatch.matches() ? versionMatch.group(1) : "").toLowerCase()
                     env.TAG = "${env.VERSION}"
                     def shouldPublish = (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'develop')
-                    echo shouldPublish
+                    echo (shouldPublish ? "shouldPublish=yes" : "shouldPublish=no")
                     env.PUSH_ARG = shouldPublish ? "" : "--no-push"
                 }
             }
